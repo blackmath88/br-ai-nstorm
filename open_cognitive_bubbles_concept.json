@@ -1,0 +1,396 @@
+{
+  "document": {
+    "title": "Open Cognitive Bubbles for Communal Problem Solving",
+    "version": "0.1",
+    "status": "early concept for critical sparring",
+    "purpose": "Describe a system in which people selectively open parts of their AI-extended thinking environments to shared problems while retaining control over identity, memory, disclosure, endorsement, and participation."
+  },
+  "core_insight": {
+    "observation": "A personal AI can expand an individual's effective memory, accessible knowledge, working context, mechanical reasoning, synthesis, and capacity to explore unfamiliar domains.",
+    "conceptual_move": "Instead of placing several people inside one centralized AI workspace, allow each person to open a governed aperture from their private AI-extended thinking space into a shared problem space.",
+    "short_formulations": [
+      "Open your AI-extended thinking bubble to a shared problem.",
+      "Communal problem solving through interoperating cognitive extensions.",
+      "A governed aperture between private augmented cognition and shared knowledge.",
+      "Shared problem memory without centralized ownership of every mind, model, or contribution."
+    ]
+  },
+  "primary_objects": {
+    "cognitive_bubble": {
+      "definition": "A personally controlled environment consisting of a person, their private memory and materials, and AI capabilities applied to that context.",
+      "contains": [
+        "personal memory",
+        "knowledge and source materials",
+        "unfinished thoughts",
+        "intentions and priorities",
+        "private judgments",
+        "working hypotheses",
+        "personal or chosen AI",
+        "retrieval and synthesis capabilities",
+        "mechanical reasoning and simulation",
+        "privacy and disclosure policies"
+      ]
+    },
+    "shared_problem_space": {
+      "definition": "A persistent, collectively accessible environment organized around a problem rather than a single project, application, organization, or central assistant.",
+      "contains": [
+        "problem formulations",
+        "subquestions",
+        "claims",
+        "assumptions",
+        "evidence",
+        "datasets",
+        "experiments",
+        "results",
+        "failed attempts",
+        "contradictions",
+        "software artifacts",
+        "syntheses",
+        "unresolved disagreements",
+        "provenance",
+        "contribution relationships"
+      ]
+    },
+    "aperture": {
+      "definition": "A governed and inspectable boundary through which a person and their AI can expose selected capabilities or contributions to a shared problem without exposing the entire private cognitive bubble.",
+      "controls": [
+        "what may be queried",
+        "what sources may be used",
+        "what may leave the private environment",
+        "whether AI may only prepare or may also publish",
+        "what requires human review",
+        "what counts as personal endorsement",
+        "how contributions may be reused",
+        "how access can be revoked",
+        "how contributions may be corrected, retracted, or withdrawn"
+      ]
+    },
+    "contribution": {
+      "definition": "A bounded, attributable object deliberately exposed to the shared problem space.",
+      "candidate_types": [
+        "question",
+        "claim",
+        "assumption",
+        "evidence",
+        "experiment",
+        "result",
+        "failed_attempt",
+        "contradiction",
+        "code",
+        "artifact",
+        "critique",
+        "synthesis",
+        "commitment",
+        "retraction"
+      ]
+    },
+    "problem_memory": {
+      "definition": "The evolving network of contributions, provenance, relationships, evaluations, disagreements, and historical changes associated with a shared problem.",
+      "important_constraint": "Problem memory should not imply a single universally canonical truth. It should preserve who asserted what, under which evidence, authority, time, visibility, and confidence."
+    }
+  },
+  "system_model": {
+    "private_side": [
+      "person",
+      "private memory",
+      "private sources",
+      "personal reasoning",
+      "chosen AI and tools",
+      "private drafts",
+      "disclosure policy"
+    ],
+    "boundary_functions": {
+      "outward": "Transform relevant private work into a bounded, inspectable contribution with provenance, uncertainty, and endorsement status.",
+      "inward": "Translate new communal developments into context relevant to the person's own knowledge, goals, hypotheses, and work.",
+      "lateral": "Identify potentially valuable connections between independently controlled cognitive bubbles without automatically disclosing their private contents."
+    },
+    "shared_side": [
+      "persistent problem identity",
+      "contribution records",
+      "shared schemas",
+      "provenance",
+      "relationships and contradictions",
+      "temporary working contexts",
+      "independent evaluations",
+      "multiple interfaces and AI services"
+    ],
+    "conceptual_flow": [
+      "private augmented cognition",
+      "scoped aperture",
+      "proposed contribution",
+      "human review or explicit delegation",
+      "signed publication",
+      "shared problem memory",
+      "independent synthesis and evaluation",
+      "relevant developments returned to participants"
+    ]
+  },
+  "participation_levels": [
+    {
+      "level": 0,
+      "name": "private",
+      "description": "Nothing leaves the cognitive bubble."
+    },
+    {
+      "level": 1,
+      "name": "availability",
+      "description": "The participant signals that they or their AI may have relevant knowledge or capacity."
+    },
+    {
+      "level": 2,
+      "name": "mediated_query",
+      "description": "Authorized questions may be submitted, but the personal AI and disclosure policy determine whether and how they can be answered."
+    },
+    {
+      "level": 3,
+      "name": "reviewed_contribution",
+      "description": "The AI may prepare a contribution, but the person explicitly reviews and publishes it."
+    },
+    {
+      "level": 4,
+      "name": "bounded_delegation",
+      "description": "The AI may monitor and contribute within explicit scopes, provenance requirements, rate limits, and revocable permissions."
+    }
+  ],
+  "authorship_and_endorsement": {
+    "principle": "AI preparation, human authorship, publication authority, and endorsement must remain distinguishable.",
+    "suggested_fields": [
+      "contribution_id",
+      "contribution_type",
+      "authored_by",
+      "prepared_by",
+      "reviewed_by",
+      "published_by",
+      "endorsement_status",
+      "publication_status",
+      "source_references",
+      "evidence",
+      "confidence",
+      "model_provenance",
+      "created_at",
+      "valid_from",
+      "valid_until",
+      "supersedes",
+      "retracts",
+      "visibility",
+      "reuse_policy"
+    ],
+    "status_examples": {
+      "publication_status": [
+        "private_draft",
+        "proposed",
+        "reviewed",
+        "published",
+        "superseded",
+        "retracted"
+      ],
+      "endorsement_status": [
+        "AI_generated_unreviewed",
+        "human_reviewed",
+        "human_endorsed",
+        "institutionally_endorsed",
+        "disputed"
+      ]
+    }
+  },
+  "collective_intelligence_model": {
+    "not": [
+      "one giant centralized collective AI",
+      "automatic pooling of everyone's private memory",
+      "a shared transcript archive",
+      "a single authority silently determining truth",
+      "unrestricted agent-to-agent exchange",
+      "a requirement that everyone use the same model or application"
+    ],
+    "instead": [
+      "interoperating but independently controlled cognitive bubbles",
+      "selective disclosure",
+      "attributable and inspectable contributions",
+      "plural models and interpretations",
+      "human authority at consequential boundaries",
+      "shared memory composed from signed contributions and explicit relationships"
+    ]
+  },
+  "atproto_hypothesis": {
+    "role": "ATProto may provide an interoperability and sovereignty layer between cognitive bubbles and shared problem spaces, rather than serving as the complete reasoning or private-memory system.",
+    "potential_uses": [
+      "persistent participant identity",
+      "portable personal or institutional repositories",
+      "signed contribution records",
+      "shared Lexicon schemas for contribution types",
+      "replaceable applications and views",
+      "federated hosting",
+      "permissioned AI clients",
+      "independent aggregation services",
+      "independently sourced labels, evaluations, or annotations"
+    ],
+    "possible_record_schemas": [
+      "org.problem.definition",
+      "org.problem.question",
+      "org.problem.claim",
+      "org.problem.assumption",
+      "org.problem.evidence",
+      "org.problem.experiment",
+      "org.problem.result",
+      "org.problem.failedAttempt",
+      "org.problem.contradiction",
+      "org.problem.synthesis",
+      "org.problem.endorsement",
+      "org.problem.retraction"
+    ],
+    "possible_network_shape": {
+      "source_layer": "Personal and institutional repositories containing signed contribution records.",
+      "aggregation_layer": "Relays, indexes, and problem-specific aggregators discover and connect compatible records.",
+      "interpretation_layer": "Independent problem AppViews produce current frontiers, contradiction maps, evidence networks, and working contexts.",
+      "interaction_layer": "Specialized clients support research, programming, experiments, comparison, critique, decision making, and public explanation."
+    },
+    "limitations": [
+      "Private working memory may require infrastructure beyond public repositories.",
+      "Group ownership and governance of problem identities remain unresolved.",
+      "The protocol does not decide what constitutes consensus or accepted knowledge.",
+      "Scientific and regulatory audit requirements may need stronger retention semantics.",
+      "Reproducible AI compute requires preservation of models, tools, parameters, environments, and source inputs beyond basic contribution text.",
+      "A dominant aggregator or AppView could recreate centralization at the interpretation layer."
+    ]
+  },
+  "problem_identity_models": [
+    {
+      "model": "root_record",
+      "description": "A problem is identified by a stable record created by an individual or institution.",
+      "risk": "The creator may appear to own the problem."
+    },
+    {
+      "model": "governed_group_identity",
+      "description": "A problem space has a persistent identity controlled through community governance.",
+      "risk": "Governance, membership, key control, and dispute resolution are difficult."
+    },
+    {
+      "model": "emergent_aggregation",
+      "description": "Problems emerge from clusters of semantically related contributions without a single owner.",
+      "risk": "Different formulations may be incorrectly merged or unnecessarily fragmented."
+    },
+    {
+      "model": "hybrid",
+      "description": "Governed communities maintain stable problem identifiers while independent AppViews may cluster, split, or relate problems differently.",
+      "risk": "Competing taxonomies improve plurality but increase navigation and interoperability complexity."
+    }
+  ],
+  "governance_and_safety": {
+    "primary_risks": [
+      "accidental disclosure of private material",
+      "unauthorized inference from partial disclosures",
+      "AI misrepresenting a participant's beliefs",
+      "confusion between AI generation and human endorsement",
+      "model-to-model persuasion outside human awareness",
+      "contribution flooding by automated agents",
+      "synthetic or manufactured consensus",
+      "reputation and evaluation gaming",
+      "dominance by actors able to deploy more compute",
+      "insecure or malicious tools inside personal AI environments",
+      "derived information leaking access-restricted sources",
+      "historical contributions remaining after a participant wishes to withdraw"
+    ],
+    "design_principles": [
+      "private by default",
+      "least-privilege access",
+      "explicit scopes",
+      "revocable delegation",
+      "inspectable outbound contributions",
+      "clear AI and human provenance",
+      "rate limits and anti-sybil defenses",
+      "plural evaluation rather than one hidden ranking authority",
+      "human approval for consequential publication or semantic mutation",
+      "separate withdrawal from retraction, deletion, and historical preservation"
+    ]
+  },
+  "relationship_to_prior_project_memory_concept": {
+    "continuities": [
+      "diachronic memory",
+      "temporary contextual working states",
+      "threads as collaborative workspaces",
+      "trace-based persistence",
+      "provenance",
+      "supersession",
+      "memory hygiene",
+      "constrained situational interfaces"
+    ],
+    "changes": [
+      "The persistent object shifts from a project toward a problem or question.",
+      "The central primitive shifts from project checkout toward a governed aperture between private and shared cognition.",
+      "Participants need not belong permanently to one project or organization.",
+      "Each participant may use a different AI, memory system, hosting provider, and application.",
+      "The shared space preserves plural claims and authorities rather than one canonical organizational state.",
+      "Decentralization becomes functionally relevant because participation is open, shifting, and cross-institutional."
+    ]
+  },
+  "smallest_testable_prototype": {
+    "name": "Open Problem Aperture",
+    "goal": "Test whether personal AI environments can exchange useful, bounded contributions to a shared problem without requiring participants to expose their full private context or use one centralized assistant.",
+    "participants": "A small group working on one bounded technical or research problem.",
+    "minimum_objects": [
+      "problem",
+      "question",
+      "claim",
+      "evidence",
+      "contradiction",
+      "artifact",
+      "synthesis"
+    ],
+    "minimum_flow": [
+      "Each participant has a private source collection and AI workspace.",
+      "A shared problem record defines the current question and contribution schema.",
+      "Participants authorize their AI to prepare, but not automatically publish, candidate contributions.",
+      "Each outbound contribution displays source provenance, uncertainty, AI involvement, and endorsement status.",
+      "The shared layer connects related and contradictory contributions.",
+      "Each personal AI receives only relevant shared updates and explains why they matter to its participant.",
+      "Participants may revoke future access without silently rewriting the meaning of past public claims."
+    ],
+    "comparison": "Compare against a shared chat containing the same participants and source material.",
+    "core_hypothesis": "Interoperating personal AI environments will produce broader, better-grounded, and more reusable collective reasoning than a centralized shared chat, while preserving clearer authority and privacy boundaries.",
+    "success_signals": [
+      "participants contribute useful knowledge that would otherwise remain private or unexpressed",
+      "cross-participant connections are discovered",
+      "shared updates are relevant rather than overwhelming",
+      "participants understand what their AI disclosed",
+      "human and AI authorship remain distinguishable",
+      "later work can reuse contributions without reconstructing the entire conversation"
+    ],
+    "falsification_signals": [
+      "the disclosure workflow costs more effort than ordinary collaboration",
+      "participants do not trust the aperture",
+      "AI-generated contributions create excessive noise",
+      "the shared chat performs equally well",
+      "meaningful knowledge cannot be separated from private context",
+      "participants cannot understand or control what their AI reveals",
+      "provenance and endorsement requirements make contributions too cumbersome",
+      "aggregation centralizes authority despite decentralized storage"
+    ]
+  },
+  "hard_questions_for_sparring": [
+    "Is the cognitive bubble a real architectural object or only a metaphor for a personal AI workspace?",
+    "What exact capabilities can be exposed without exposing source content?",
+    "Can an AI answer mediated queries without leaking facts through inference, wording, confidence, or refusal behavior?",
+    "Who defines or governs a shared problem identity?",
+    "What is the minimum interoperable contribution schema?",
+    "Does each contribution need to be public, or can the network support restricted and encrypted problem spaces?",
+    "How is human endorsement represented when an AI performed most of the reasoning?",
+    "Can participants meaningfully revoke AI access after derived knowledge has entered communal memory?",
+    "How does the system resist thousands of low-quality automated contributions?",
+    "How are minority, dissenting, and superseded positions preserved without overwhelming users?",
+    "Can independent AppViews disagree productively about relevance, quality, and problem structure?",
+    "What prevents the dominant AppView from becoming the de facto central authority?",
+    "Would researchers and programmers accept contribution objects, or prefer existing papers, repositories, issues, and chats?",
+    "What immediate personal benefit motivates someone to open their bubble?",
+    "Which bounded problem would provide a decisive prototype test?"
+  ],
+  "current_verdict": {
+    "classification": [
+      "interesting architecture",
+      "potentially consequential communal-computing model",
+      "requires a narrow use case and falsifiable prototype"
+    ],
+    "strongest_claim": "The central opportunity is not merely collective project memory. It is a governed interface through which independently controlled, AI-extended human cognition can participate in persistent communal problem solving.",
+    "main_uncertainty": "Whether useful shared knowledge can cross the aperture with sufficiently low effort, high trust, strong provenance, and meaningful privacy.",
+    "recommended_next_focus": "Specify and prototype the aperture contract before building a complete problem-memory protocol, dynamic interface system, or decentralized platform."
+  }
+}

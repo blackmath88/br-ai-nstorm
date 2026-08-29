@@ -1,0 +1,711 @@
+{
+  "document": {
+    "title": "Open Cognitive Bubbles — Deep Concept, Research, and Validation Plan",
+    "version": "0.2",
+    "status": "concept architecture + experimental roadmap",
+    "date": "2026-08-29",
+    "purpose": "Explain the Open Cognitive Bubbles concept deeply enough for research, technical sparring, prototyping, and falsification. This document treats the idea as a hypothesis to test, not a product assumption.",
+    "source_basis": "Developed from the prior Open Cognitive Bubbles concept and subsequent critical sparring around collective memory, AI-mediated context coordination, provenance, privacy, and human-AI collaboration."
+  },
+  "executive_summary": {
+    "core_problem": "AI is increasingly extending individual cognition, but collaboration tools still assume that useful context must be manually copied into a centralized shared surface. This creates a gap between rich private AI-extended thinking and comparatively impoverished communal problem solving.",
+    "core_hypothesis": "People may be able to contribute more useful knowledge to shared problems if they can selectively open governed apertures from independently controlled AI-extended cognitive environments into a persistent shared problem space.",
+    "one_line": "Private augmented cognition + governed apertures + persistent shared problem memory.",
+    "strongest_formulation": "A governed interface through which independently controlled, AI-extended human cognition can participate in persistent communal problem solving.",
+    "what_is_potentially_new": "The potentially distinctive interaction is not shared AI memory by itself. It is multiple independently controlled human+AI cognitive environments selectively interoperating around a shared problem while preserving attribution, disclosure boundaries, plural interpretations, and human authority.",
+    "key_unknown": "Can useful knowledge cross the aperture with low enough friction, high enough trust, and sufficient privacy to outperform ordinary shared chat or centralized AI collaboration?"
+  },
+  "problem_statement": {
+    "current_pattern": [
+      "Individuals increasingly use personal AI assistants with access to their own notes, documents, code, research, memory, and preferences.",
+      "These private AI environments may contain far richer context than what is visible in a group chat, meeting, or shared document.",
+      "To collaborate, people currently have to decide manually what to copy, summarize, disclose, or explain.",
+      "Useful weak signals, unfinished thoughts, doubts, partial expertise, and relevant private materials often never cross into the shared space.",
+      "Centralizing all private context into one shared AI would simplify retrieval but introduces unacceptable privacy, ownership, trust, governance, and autonomy problems."
+    ],
+    "design_question": "Can collaboration benefit from private AI-extended cognition without requiring all private context, memory, tools, and models to be centralized?",
+    "secondary_questions": [
+      "Can an AI reveal that relevant knowledge exists without revealing the knowledge itself?",
+      "Can different people use different AI systems while still contributing interoperable objects?",
+      "Can shared reasoning preserve disagreement and provenance instead of collapsing everything into a single synthesis?",
+      "Can collective memory remain useful without becoming a transcript swamp?",
+      "What immediate personal benefit motivates participants to open their cognitive bubble?"
+    ]
+  },
+  "conceptual_primitives": {
+    "cognitive_bubble": {
+      "definition": "A personally or institutionally controlled augmented cognition environment.",
+      "contains": [
+        "private memory",
+        "notes and documents",
+        "unfinished thoughts",
+        "working hypotheses",
+        "preferences and priorities",
+        "private judgments",
+        "source materials",
+        "personal AI or chosen models",
+        "tools",
+        "retrieval systems",
+        "local reasoning and simulations",
+        "disclosure policies"
+      ],
+      "important_property": "The cognitive bubble is not automatically part of the shared system. It remains independently controlled."
+    },
+    "shared_problem_space": {
+      "definition": "A persistent environment organized around a problem, question, or challenge rather than around a single organization, application, group chat, or AI assistant.",
+      "contains": [
+        "problem definitions",
+        "subquestions",
+        "contributions",
+        "claims",
+        "assumptions",
+        "evidence",
+        "datasets",
+        "experiments",
+        "results",
+        "failed attempts",
+        "contradictions",
+        "artifacts",
+        "syntheses",
+        "unresolved disagreements",
+        "provenance",
+        "evaluations",
+        "historical changes"
+      ],
+      "important_property": "The shared problem space does not need to own the participants' full private memories or AI environments."
+    },
+    "aperture": {
+      "definition": "A governed, revocable, and inspectable boundary between a cognitive bubble and a shared problem space.",
+      "why_it_matters": "The aperture is the key trust and interoperability primitive. It defines what another human, AI, or shared problem space may learn, ask, infer, publish, or reuse.",
+      "control_dimensions": [
+        "which problem spaces may interact with the bubble",
+        "what categories of private sources may be consulted",
+        "what query types are allowed",
+        "whether only relevance may be revealed",
+        "whether anonymized synthesis is allowed",
+        "whether source identity may be revealed",
+        "whether participant identity may be revealed",
+        "whether quoting is allowed",
+        "whether AI may prepare a contribution",
+        "whether AI may publish automatically",
+        "what requires human review",
+        "reuse rights",
+        "revocation",
+        "correction",
+        "withdrawal",
+        "retention"
+      ]
+    },
+    "contribution": {
+      "definition": "A bounded, attributable object deliberately exposed to the shared problem space.",
+      "possible_types": [
+        "question",
+        "claim",
+        "assumption",
+        "evidence",
+        "experiment",
+        "result",
+        "failed_attempt",
+        "contradiction",
+        "artifact",
+        "code",
+        "critique",
+        "synthesis",
+        "commitment",
+        "retraction"
+      ],
+      "key_rule": "A contribution is not equivalent to the person's complete belief, memory, or private context."
+    },
+    "problem_memory": {
+      "definition": "The diachronic accumulation of shared contributions, relationships, provenance, disagreements, evaluations, and changes around a problem.",
+      "truth_model": "Problem memory should represent attributed assertions and governance status, not one universal canonical truth.",
+      "example": [
+        "Person A proposed X.",
+        "Person B disputed X using evidence E.",
+        "Working group Y provisionally accepted X under condition C.",
+        "Experiment Z later contradicted assumption A."
+      ]
+    }
+  },
+  "central_interaction_topology": {
+    "current_collaboration": {
+      "shape": "Human -> shared chat/document",
+      "limitation": "Participants must manually externalize useful context and often leave private AI-assisted reasoning disconnected from the group."
+    },
+    "personal_copilot": {
+      "shape": "Human -> personal AI",
+      "limitation": "Each participant gains augmentation, but the augmentations remain informational islands."
+    },
+    "open_cognitive_bubbles": {
+      "shape": "Human <-> personal AI/cognitive bubble <-> governed aperture <-> shared problem memory <-> apertures <-> other cognitive bubbles",
+      "distinctive_property": "Each participant has an individual doorway into communal reasoning without surrendering their entire private context."
+    }
+  },
+  "participation_model": [
+    {
+      "level": 0,
+      "name": "private",
+      "meaning": "No information crosses the aperture."
+    },
+    {
+      "level": 1,
+      "name": "availability_signal",
+      "meaning": "The bubble may reveal that relevant knowledge, experience, or capacity might exist without revealing the underlying content."
+    },
+    {
+      "level": 2,
+      "name": "mediated_query",
+      "meaning": "The shared problem may submit bounded questions. The bubble decides whether and how to respond."
+    },
+    {
+      "level": 3,
+      "name": "reviewed_contribution",
+      "meaning": "AI may draft a contribution, but the participant reviews the exact outbound object before publication."
+    },
+    {
+      "level": 4,
+      "name": "bounded_delegation",
+      "meaning": "The participant authorizes AI to monitor or contribute within explicit scopes, rate limits, provenance rules, and revocable permissions."
+    }
+  ],
+  "authorship_provenance_model": {
+    "principle": "AI generation, human review, publication authority, endorsement, and institutional authority must remain distinct.",
+    "minimum_fields": [
+      "contribution_id",
+      "problem_id",
+      "type",
+      "content",
+      "authored_by",
+      "prepared_by",
+      "reviewed_by",
+      "published_by",
+      "endorsement_status",
+      "publication_status",
+      "source_references",
+      "model_provenance",
+      "confidence",
+      "created_at",
+      "valid_from",
+      "valid_until",
+      "visibility",
+      "reuse_policy",
+      "supersedes",
+      "retracts"
+    ],
+    "publication_statuses": [
+      "private_draft",
+      "proposed",
+      "reviewed",
+      "published",
+      "superseded",
+      "retracted"
+    ],
+    "endorsement_statuses": [
+      "AI_generated_unreviewed",
+      "human_reviewed",
+      "human_endorsed",
+      "institutionally_endorsed",
+      "disputed"
+    ],
+    "critical_rule": "Never transform 'Person A said X' into 'X is true' without an explicit governance transition."
+  },
+  "aperture_contract_hypothesis": {
+    "why_first": "The aperture is the part of the concept that is most distinctive and most likely to fail. It should be specified and tested before building a full decentralized memory protocol.",
+    "example_contract": {
+      "problem_scope": [
+        "problem:example"
+      ],
+      "allowed_query_types": [
+        "relevance_check",
+        "knowledge_presence",
+        "bounded_synthesis",
+        "request_evidence",
+        "request_contribution"
+      ],
+      "private_source_scopes": [
+        "selected_notes",
+        "selected_documents",
+        "selected_code",
+        "selected_memory_categories"
+      ],
+      "disclosure_policy": {
+        "allow_similarity_detection": true,
+        "allow_anonymous_relevance_signal": true,
+        "allow_anonymous_synthesis": false,
+        "allow_quote": false,
+        "allow_source_identity": false,
+        "allow_person_identity": false
+      },
+      "publication_policy": {
+        "ai_may_prepare": true,
+        "ai_may_publish": false,
+        "human_review_required": true
+      },
+      "retention_policy": {
+        "shared_contribution_persists": true,
+        "future_access_revocable": true,
+        "historical_retraction_supported": true
+      }
+    },
+    "core_security_principle": "Aperture enforcement must happen before information enters a shared model context. Privacy cannot depend solely on instructing an LLM not to disclose restricted information."
+  },
+  "key_novel_interaction": {
+    "name": "permission-safe latent overlap discovery",
+    "scenario": [
+      "Participant A privately writes that ownership is the real problem.",
+      "Participant B independently expresses a similar concern privately.",
+      "The system identifies semantic overlap.",
+      "Neither private statement is revealed.",
+      "Each participant may receive a message such as: 'Another participant appears to be exploring a closely related concern. Would you like to make your concern discoverable?'",
+      "Only after consent does additional information cross the aperture."
+    ],
+    "why_it_matters": "This could make latent distributed knowledge available to a group without requiring every tentative thought to be published.",
+    "why_it_is_dangerous": [
+      "Users may experience it as surveillance.",
+      "Even revealing that an overlap exists can disclose sensitive information.",
+      "The system may infer false similarity.",
+      "Social power differences may make disclosure feel coerced.",
+      "Participants may not understand what the AI inferred from their private context."
+    ]
+  },
+  "collective_intelligence_hypothesis": {
+    "not": [
+      "one centralized AI with everyone's private data",
+      "one mandatory application",
+      "one shared transcript",
+      "one model deciding truth",
+      "automatic pooling of private memory",
+      "unrestricted model-to-model communication"
+    ],
+    "instead": [
+      "independently controlled augmented cognition",
+      "selective interoperability",
+      "explicit disclosure boundaries",
+      "attributed contributions",
+      "plural interpretations",
+      "human authority at consequential boundaries",
+      "shared problem memory that persists beyond individual conversations"
+    ]
+  },
+  "technical_architecture_v0": {
+    "goal": "Test the interaction and trust model with the least infrastructure possible.",
+    "components": {
+      "frontend": "Simple web app with one private workspace per participant and one shared problem view.",
+      "identity": "Local accounts or basic OAuth for prototype; no decentralized identity required initially.",
+      "database": "PostgreSQL.",
+      "vector_search": "pgvector or equivalent for semantic relevance and overlap candidates.",
+      "private_memory": "Separate per-participant namespaces or stores enforced deterministically.",
+      "shared_memory": "Shared contribution and provenance tables.",
+      "event_log": "Append-oriented event table in PostgreSQL; Kafka is not required for prototype.",
+      "llm": "One or more model adapters behind a small tool interface.",
+      "policy_engine": "Deterministic aperture rules applied before model-visible context assembly.",
+      "audit_log": "Record every attempted and actual disclosure across apertures."
+    },
+    "minimum_tables": [
+      "users",
+      "problems",
+      "memberships",
+      "private_sources",
+      "private_contributions",
+      "aperture_policies",
+      "shared_contributions",
+      "relationships",
+      "events",
+      "disclosure_audit"
+    ],
+    "defer": [
+      "ATProto integration",
+      "Kafka",
+      "graph database",
+      "dynamic UI",
+      "large ontology",
+      "autonomous agent swarms",
+      "complex reputation system",
+      "federated hosting",
+      "cryptographic signing beyond what is necessary for prototype"
+    ]
+  },
+  "technical_architecture_later": {
+    "if_v0_succeeds": [
+      "portable signed contribution schemas",
+      "federated participant repositories",
+      "ATProto or similar interoperability substrate",
+      "independent problem aggregators",
+      "multiple AppViews",
+      "independent evaluators",
+      "temporal contribution graphs",
+      "reputation and anti-abuse mechanisms",
+      "model and tool provenance",
+      "encrypted or permissioned shared problem spaces",
+      "cross-problem semantic routing"
+    ],
+    "possible_atproto_role": {
+      "identity": "persistent participant or institutional identity",
+      "records": "signed typed contributions",
+      "schemas": "Lexicons for contribution objects",
+      "hosting": "portable repositories",
+      "views": "replaceable problem aggregators and AppViews",
+      "limitations": "ATProto does not itself solve private working memory, governance, consensus, model provenance, confidential inference, or scientific auditability."
+    }
+  },
+  "research_program": {
+    "phase_0_concept_attack": {
+      "goal": "Determine whether the concept is materially distinct from shared RAG, AI group chat, organizational memory, CSCW systems, and agent blackboards.",
+      "activities": [
+        "Review CSCW and organizational memory literature.",
+        "Review argumentation systems and IBIS-style tools.",
+        "Review privacy-preserving collaborative AI and federated-agent research.",
+        "Review blackboard architectures and multi-agent shared-state systems.",
+        "Review personal AI memory products and shared AI workspaces.",
+        "Review decentralized social/protocol work around ATProto permissioned spaces and groups.",
+        "Map closest commercial and open-source analogues."
+      ],
+      "deliverable": "Prior-art and differentiation matrix.",
+      "decision_gate": "Continue only if the governed aperture or independently controlled cognitive-bubble topology creates a testable distinction beyond existing shared-memory collaboration."
+    },
+    "phase_1_aperture_specification": {
+      "goal": "Define exactly what crosses between private and shared cognition.",
+      "activities": [
+        "Define query classes.",
+        "Define disclosure levels.",
+        "Define authorship and endorsement states.",
+        "Define revocation semantics.",
+        "Define audit requirements.",
+        "Define what counts as leakage.",
+        "Define permission-safe overlap detection.",
+        "Write threat models for inference attacks."
+      ],
+      "deliverable": "Aperture Contract v0.1.",
+      "decision_gate": "Do not prototype multi-user mediation until participants can understand and predict the aperture rules."
+    },
+    "phase_2_static_simulation": {
+      "goal": "Test the UX and privacy model before connecting live LLMs to real private data.",
+      "setup": "Four simulated participants with hand-authored private and shared contributions.",
+      "activities": [
+        "Prototype privacy settings.",
+        "Prototype relevance signals.",
+        "Prototype anonymous overlap prompts.",
+        "Prototype outbound contribution review.",
+        "Prototype provenance display.",
+        "Test participant comprehension with scenario walkthroughs."
+      ],
+      "deliverable": "Clickable simulation.",
+      "success_criteria": [
+        "Users correctly predict what will and will not be disclosed.",
+        "Users understand the difference between relevance signal, synthesis, quotation, and publication.",
+        "Provenance is understandable without becoming overwhelming."
+      ]
+    },
+    "phase_3_live_micro_experiment": {
+      "goal": "Test whether participants actually contribute more useful latent knowledge through private AI interaction.",
+      "participants": "4-8 people.",
+      "duration": "1-5 days.",
+      "problem": "One bounded problem with enough distributed knowledge and uncertainty to make collaboration meaningful.",
+      "conditions": [
+        "Baseline A: normal shared chat.",
+        "Experimental B: private AI workspaces + shared problem memory + reviewed apertures."
+      ],
+      "metrics": [
+        "number of unique useful contributions",
+        "number of cross-participant connections discovered",
+        "number of contributions participants report they would not have posted directly",
+        "time to relevant context",
+        "participant trust",
+        "disclosure comprehension",
+        "false-positive overlap prompts",
+        "privacy incidents or near misses",
+        "reuse of contributions later in the experiment"
+      ],
+      "qualitative_questions": [
+        "Did the system surface something you would not have found manually?",
+        "Did you share something you would not have put into the group chat?",
+        "Did any system intervention feel creepy or surveillance-like?",
+        "Did you understand what your AI was allowed to reveal?",
+        "Did the shared memory help you think, or did it add administrative overhead?"
+      ],
+      "decision_gate": "Continue only if experimental collaboration produces clearly useful context or participation that the shared-chat baseline misses."
+    },
+    "phase_4_real_domain_pilot": {
+      "goal": "Test the model in a real collaborative setting where provenance and distributed expertise matter.",
+      "candidate_domains": [
+        "small interdisciplinary research collaboration",
+        "open-source technical design problem",
+        "cross-institutional working group",
+        "community governance question",
+        "expert network tackling a bounded policy or technical problem"
+      ],
+      "avoid_initially": [
+        "highly sensitive HR discussions",
+        "clinical health decisions",
+        "legal privilege",
+        "large corporate deployment",
+        "open public network"
+      ],
+      "deliverable": "Real-world field report and revised aperture contract."
+    },
+    "phase_5_interoperability_test": {
+      "goal": "Determine whether independent AI environments can participate through a shared protocol rather than one application.",
+      "activities": [
+        "Create minimal contribution schema.",
+        "Build two different client implementations.",
+        "Allow different model providers or local models.",
+        "Test signed contribution exchange.",
+        "Test independent aggregators.",
+        "Evaluate ATProto or another federated substrate."
+      ],
+      "decision_gate": "Only pursue protocol work if users value cross-environment participation enough to justify interoperability complexity."
+    }
+  },
+  "prototype_plan": {
+    "prototype_name": "Open Problem Aperture",
+    "prototype_goal": "Demonstrate that independently controlled personal AI contexts can produce useful shared contributions without centralizing private memory.",
+    "scope": {
+      "participants": 4,
+      "problems": 1,
+      "private_source_items_per_person": "5-20",
+      "shared_contribution_types": [
+        "question",
+        "claim",
+        "evidence",
+        "contradiction"
+      ],
+      "interfaces": [
+        "My Bubble",
+        "Shared Problem",
+        "Outbound Review"
+      ]
+    },
+    "user_flow": [
+      "Participant enters a private note or source.",
+      "Personal AI uses only that participant's private scope.",
+      "Shared problem asks or exposes a current subquestion.",
+      "System checks whether the participant's bubble contains potentially relevant context.",
+      "Depending on aperture policy, the bubble returns nothing, a relevance signal, a candidate synthesis, or a proposed contribution.",
+      "If review is required, the participant sees exactly what will leave the bubble.",
+      "The approved contribution enters shared memory with provenance.",
+      "Other participants' AIs receive relevant shared contributions according to their own context.",
+      "The system may identify possible cross-participant overlap and ask for consent before stronger disclosure.",
+      "The shared problem view shows plural contributions and contradictions without forcing consensus."
+    ],
+    "must_not_build": [
+      "full project management",
+      "tasks and kanban",
+      "social feed",
+      "dynamic UI generation",
+      "full decentralized protocol",
+      "automatic consensus engine"
+    ]
+  },
+  "experiment_design": {
+    "baseline": {
+      "name": "Shared Chat",
+      "description": "All participants receive the same problem and source access appropriate to the baseline. They collaborate in one shared chat with an AI assistant."
+    },
+    "experimental": {
+      "name": "Cognitive Bubbles",
+      "description": "Each participant has private AI-assisted context plus governed apertures and a persistent shared contribution space."
+    },
+    "primary_outcomes": [
+      "useful latent knowledge surfaced",
+      "cross-participant insight discovery",
+      "quality of final shared problem understanding",
+      "reuse of contributions",
+      "trust and perceived control"
+    ],
+    "secondary_outcomes": [
+      "time spent reviewing disclosures",
+      "noise introduced by AI contributions",
+      "false connections",
+      "participants' mental model accuracy",
+      "perceived privacy risk",
+      "group participation balance"
+    ],
+    "falsification_conditions": [
+      "shared chat performs equally well with lower complexity",
+      "participants rarely use private interaction",
+      "participants do not trust overlap detection",
+      "review friction suppresses contribution",
+      "AI cannot produce useful bounded contributions without revealing too much private context",
+      "provenance requirements overwhelm users",
+      "shared memory accumulates noise faster than reusable knowledge",
+      "participants cannot predict what crosses the aperture"
+    ]
+  },
+  "trust_and_safety_research": {
+    "threats": [
+      "direct private-data leakage",
+      "inference leakage",
+      "identity leakage",
+      "re-identification through writing style or rare facts",
+      "private-content leakage via embeddings or similarity scores",
+      "malicious query probing",
+      "model-to-model extraction attacks",
+      "social coercion to open apertures",
+      "AI misrepresentation of participant views",
+      "synthetic consensus",
+      "contribution flooding",
+      "compute-based dominance",
+      "withdrawal conflicts with historical integrity"
+    ],
+    "required_tests": [
+      "Can an attacker infer private facts through repeated relevance queries?",
+      "Can refusal patterns leak knowledge presence?",
+      "Can overlap notifications expose sensitive relationships?",
+      "Can anonymized syntheses be re-identified?",
+      "Can model prompts bypass aperture policy?",
+      "Can users inspect all disclosures after the fact?",
+      "Can users revoke future access cleanly?"
+    ],
+    "design_bias": "Prefer less functionality and stronger understandable boundaries over impressive but opaque AI mediation."
+  },
+  "memory_hygiene": {
+    "principle": "Shared memory must preserve useful structure without becoming a dump of every AI-generated thought.",
+    "rules": [
+      "Private drafts remain private unless deliberately exposed.",
+      "AI-generated candidate contributions are not equivalent to published contributions.",
+      "Duplicate and contradiction detection should propose relationships rather than silently merge records.",
+      "Superseded and retracted claims remain historically inspectable where appropriate.",
+      "The system should support plural and conflicting interpretations.",
+      "Participants should be able to distinguish evidence from synthesis and endorsement."
+    ]
+  },
+  "success_story": {
+    "example": "Four researchers are tackling a technical question. One has private notes on a failed experiment, another has domain literature, a third has code from a related project, and a fourth has a half-formed concern they are not ready to state publicly. Their personal AIs identify relevance to a shared subquestion. Each participant reviews a bounded contribution. The shared problem memory surfaces a contradiction between the literature and experiment. A later participant's AI receives that contradiction as relevant context. The group progresses without anyone uploading their entire personal memory into one centralized assistant.",
+    "why_better_than_shared_chat": [
+      "private context can contribute without being fully disclosed",
+      "attribution and provenance survive",
+      "participants may use different tools",
+      "useful contributions become reusable objects rather than buried messages",
+      "the system can route shared developments back into each participant's private context"
+    ]
+  },
+  "failure_story": {
+    "example": "Participants spend more time configuring permissions and reviewing AI-generated outbound text than solving the problem. Overlap notifications feel invasive. Contributions become redundant summaries. Everyone eventually copies the useful facts into the shared chat because it is simpler.",
+    "conclusion": "If this happens consistently, the aperture architecture does not justify itself."
+  },
+  "research_questions": {
+    "conceptual": [
+      "Is a cognitive bubble an actual architectural primitive or only a metaphor for personal AI workspace isolation?",
+      "Is the shared problem the correct persistent object?",
+      "Does independently controlled cognition create a meaningful new collaboration topology?"
+    ],
+    "ux": [
+      "What is the minimum control surface needed for users to understand disclosure?",
+      "How much provenance should be visible by default?",
+      "Do people value a private doorway into shared problems?",
+      "When should the system suggest sharing versus remain silent?"
+    ],
+    "technical": [
+      "Can aperture policies be enforced deterministically across heterogeneous AI environments?",
+      "Can semantic overlap detection operate without leaking restricted information?",
+      "How should contributions be signed and versioned?",
+      "How can independent aggregators disagree without destroying usability?"
+    ],
+    "social": [
+      "Does mediation improve participation from quieter or lower-status members?",
+      "Does it create new forms of surveillance or social pressure?",
+      "How does the system preserve minority and dissenting views?",
+      "Who governs a shared problem identity?"
+    ],
+    "economic": [
+      "Who has enough pain to adopt this?",
+      "Is the first buyer a research team, institution, community platform, or infrastructure provider?",
+      "Is interoperability itself valuable enough to motivate adoption?"
+    ]
+  },
+  "decision_framework": {
+    "continue": [
+      "participants contribute useful knowledge they would not otherwise have shared",
+      "permission-safe mediation creates meaningful cross-person connections",
+      "users understand and trust the disclosure model",
+      "shared contributions remain useful after the original conversation",
+      "the baseline shared chat misses important context"
+    ],
+    "pivot": [
+      "collective memory is useful but private apertures are too complex",
+      "users value decision provenance but not distributed AI environments",
+      "users prefer one shared assistant but want stronger attribution and governance",
+      "the strongest value appears in a specific vertical such as research collaboration"
+    ],
+    "kill_or_pause": [
+      "participants consistently prefer ordinary shared chat",
+      "privacy-safe mediation removes too much useful information",
+      "participants cannot understand disclosure boundaries",
+      "AI-generated contributions create more noise than signal",
+      "maintenance and review cost exceeds coordination benefit"
+    ]
+  },
+  "recommended_next_30_days": [
+    {
+      "week": 1,
+      "focus": "Aperture contract and prior-art attack",
+      "tasks": [
+        "Write Aperture Contract v0.1.",
+        "Define four disclosure modes with concrete examples.",
+        "Research CSCW, organizational memory, privacy-preserving collaboration, blackboard systems, and closest AI products.",
+        "Create a threat model."
+      ]
+    },
+    {
+      "week": 2,
+      "focus": "Static UX simulation",
+      "tasks": [
+        "Build one HTML/React mock with four fake participants.",
+        "Implement My Bubble, Shared Problem, and Outbound Review.",
+        "Simulate private overlap discovery.",
+        "Test whether users understand what would be disclosed."
+      ]
+    },
+    {
+      "week": 3,
+      "focus": "Minimal live prototype",
+      "tasks": [
+        "Add PostgreSQL.",
+        "Add per-user private namespaces.",
+        "Add one LLM adapter.",
+        "Add deterministic aperture filtering.",
+        "Add semantic relevance/overlap candidates.",
+        "Add disclosure audit log."
+      ]
+    },
+    {
+      "week": 4,
+      "focus": "Micro experiment",
+      "tasks": [
+        "Recruit 4-8 participants.",
+        "Choose one bounded real problem.",
+        "Run shared-chat baseline and bubble condition.",
+        "Measure useful hidden knowledge, discovered links, trust, and friction.",
+        "Write a falsification report rather than a product roadmap."
+      ]
+    }
+  ],
+  "requested_llm_sparring": {
+    "instruction": "Treat this as a research hypothesis. Do not optimize the pitch. Try to break it.",
+    "questions": [
+      "Which known academic or commercial systems most closely implement this topology?",
+      "Is the governed aperture genuinely distinct from privacy-aware tool calling and access-controlled RAG?",
+      "What is the simplest possible architecture that can test the hypothesis?",
+      "What kinds of information cannot safely cross an aperture even as an anonymous relevance signal?",
+      "Could secure computation, local models, federated retrieval, or cryptographic methods materially improve the model?",
+      "What social-science research predicts whether people will trust or reject this?",
+      "What bounded collaborative problem is most likely to show a dramatic advantage over shared chat?",
+      "What would falsify the concept fastest?",
+      "If the concept works, what should become a protocol and what should remain application-specific?"
+    ],
+    "desired_verdict": [
+      "strong research direction",
+      "interesting but primarily a privacy-aware shared-RAG pattern",
+      "promising interaction with weak protocol justification",
+      "valuable only for specific high-provenance domains",
+      "too socially risky or operationally costly",
+      "requires a different use case"
+    ]
+  },
+  "current_conclusion": {
+    "classification": "Interesting communal-computing architecture with a testable but unproven interaction primitive.",
+    "strongest_claim": "The possible innovation is not a larger collective AI. It is a governed way for independently controlled, AI-extended human cognition to contribute to shared reasoning without surrendering the whole private cognitive environment.",
+    "highest_priority": "Prototype and falsify the aperture contract.",
+    "do_not_do_next": "Do not build a full decentralized platform, temporal graph, dynamic UI system, or protocol before demonstrating that people actually value and trust this interaction."
+  }
+}
