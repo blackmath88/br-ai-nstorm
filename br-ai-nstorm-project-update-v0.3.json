@@ -1,0 +1,386 @@
+{
+  "document": {
+    "title": "br-ai-nstorm — Project Update",
+    "version": "0.3",
+    "date": "2026-08-29",
+    "purpose": "Capture the latest conceptual and implementation shift of br-ai-nstorm as a structured project-memory update: what changed, what became clearer, what was built, what was dropped or deferred, and what remains unresolved."
+  },
+  "project_identity": {
+    "current_name": "br-ai-nstorm",
+    "visible_product_frame": "A living map of collective problem solving.",
+    "deeper_research_frame": "A practical wrapper for testing Open Cognitive Bubbles: independently controlled AI-extended thinking environments contributing bounded, interoperable objects to a shared problem space.",
+    "current_north_star": "One eyesight should tell a participant where the collective thinking currently stands, what changed, what happened to their own contributions, and what might be useful to think about next."
+  },
+  "where_the_idea_started": {
+    "initial_form": "ATProto-inspired application-independent data plus Delta.dev-style checkout semantics.",
+    "early_thesis": "The app should not own the canonical data. Interfaces should be temporary views or checkouts over durable shared state.",
+    "later_reframe": "The persistent object became collective/project memory, with threads as collaborative workspaces and LLM compute helping reconstruct relevant context.",
+    "next_reframe": "The strongest interaction was identified as multiple people having personal AI conversations that draw from and contribute to shared, permissioned collective memory.",
+    "current_reframe": "The concept moved from project memory to Open Cognitive Bubbles: independently controlled AI-extended cognition connects to a shared problem through governed apertures."
+  },
+  "what_changed_in_the_latest_iteration": {
+    "major_shift_1_product_wrapper": {
+      "before": "The concept was mostly explained as collective memory, checkout, semantic commit, dynamic UI, and distributed cognition.",
+      "now": "The visible product is intentionally much simpler: a collaborative brainstorm/problem-solving app.",
+      "reason": "The deeper architecture is too abstract to validate directly. br-ai-nstorm provides a concrete UX where the hidden architecture can be tested."
+    },
+    "major_shift_2_problem_not_project": {
+      "before": "A project or organization was treated as the persistent object.",
+      "now": "A problem is the primary visible object.",
+      "reason": "Problems are more flexible than projects and make cross-institutional, community, research, and city-scale collaboration possible without forcing one organizational boundary."
+    },
+    "major_shift_3_state_not_map": {
+      "before": "The D3 relationship map was close to becoming the primary representation.",
+      "now": "Canonical semantic state is primary; Map and Timeline are synchronized views.",
+      "reason": "Force-directed position is not a stable ontology. Users need a clear canonical structure they can understand immediately."
+    },
+    "major_shift_4_one_eyesight_view": {
+      "before": "The interface emphasized exploration through a network map.",
+      "now": "The interface must answer at a glance: Where are we now? What changed? What happened to my thinking? What is still unresolved? What should I think about next?",
+      "reason": "This is the strongest human-facing value proposition discovered so far."
+    },
+    "major_shift_5_clipboard_as_fake_protocol": {
+      "before": "Interoperability was discussed in terms of future ATProto, APIs, MCP, federation, or agents.",
+      "now": "Interoperability is simulated with a clipboard JSON round-trip.",
+      "reason": "This isolates the real hypothesis without infrastructure distractions."
+    },
+    "major_shift_6_lexicon_like_contract": {
+      "before": "ATProto was mostly an architectural inspiration.",
+      "now": "ATProto-style Lexicon thinking becomes useful as an interchange schema between br-ai-nstorm and arbitrary external LLM environments.",
+      "reason": "The system does not need to standardize the internal cognition process; it only needs to standardize what crosses the boundary."
+    },
+    "major_shift_7_hidden_private_reasoning": {
+      "before": "There was concern that the individual reasoning process is hidden from the collective.",
+      "now": "This is accepted as an intentional first participation mode: private reasoning stays private; only bounded reviewed contributions enter shared memory.",
+      "reason": "The private process is not automatically the shared artifact. This mirrors the aperture model."
+    }
+  },
+  "current_visible_product_model": {
+    "problem": {
+      "definition": "The shared question or challenge the group is working on.",
+      "role": "Persistent visible anchor for the collective state."
+    },
+    "contribution": {
+      "definition": "Anything a participant adds that changes or enriches the problem state.",
+      "examples": [
+        "question",
+        "approach",
+        "evidence",
+        "assumption",
+        "contradiction",
+        "experience",
+        "proposal"
+      ],
+      "ux_principle": "Participants should not need to classify before thinking. Classification can be proposed after the contribution exists."
+    },
+    "orchestration": {
+      "definition": "AI-mediated context coordination around the problem.",
+      "visible_behaviors": [
+        "what changed",
+        "what became central",
+        "what remains unresolved",
+        "what contradicts what",
+        "what happened to my contribution",
+        "what I might usefully think about next"
+      ],
+      "important_distinction": "The AI orchestrates context, not people."
+    },
+    "evaluation": {
+      "definition": "The changing epistemic state of contributions and solution directions.",
+      "possible_future_statuses": [
+        "promising",
+        "needs evidence",
+        "supported",
+        "contradicted",
+        "untested",
+        "tested",
+        "superseded",
+        "unresolved"
+      ],
+      "important_distinction": "This is not likes or social popularity. It is intended to communicate problem-solving state."
+    }
+  },
+  "canonical_information_architecture": {
+    "default_view": "State",
+    "canonical_categories": [
+      "problem",
+      "open questions",
+      "approaches",
+      "evidence",
+      "assumptions",
+      "contradictions/tensions",
+      "emerging synthesis"
+    ],
+    "principle": "The semantic categories are canonical. Visual layouts are projections over the same state.",
+    "derived_views": {
+      "map": {
+        "purpose": "Explore relationships, clusters, support, contradiction, and emerging structure.",
+        "implementation": "D3 force-directed graph.",
+        "warning": "Position is exploratory and must not imply canonical hierarchy or truth."
+      },
+      "timeline": {
+        "purpose": "Show the diachronic evolution of the problem state.",
+        "implementation": "Chronological view over significant changes."
+      },
+      "future_views": [
+        "argument map",
+        "decision view",
+        "evidence view",
+        "people/expertise view",
+        "City2Graph spatial projection",
+        "solution comparison"
+      ]
+    }
+  },
+  "personal_participant_experience": {
+    "since_you_were_here": {
+      "purpose": "Summarize how the collective state changed since the participant last engaged.",
+      "examples": [
+        "ownership became central",
+        "a new approach appeared",
+        "an assumption was challenged",
+        "an evidence gap emerged"
+      ]
+    },
+    "your_traces": {
+      "purpose": "Show what happened to the participant's previous contributions.",
+      "examples": [
+        "connected to four later contributions",
+        "became part of an emerging approach",
+        "was contradicted by new evidence",
+        "remains unresolved",
+        "triggered a new question"
+      ],
+      "important_ux_insight": "The system should show not only what people posted, but what their contributions did to the shared thinking."
+    },
+    "think_next": {
+      "purpose": "Provide participant-specific prompts based on gaps, prior contributions, expertise, and current problem state.",
+      "important_ux_insight": "This is where orchestration becomes personally useful instead of becoming a generic AI summary."
+    }
+  },
+  "aperture_and_interoperability": {
+    "current_v0": {
+      "mechanism": "Clipboard JSON round-trip.",
+      "flow": [
+        "Participant opens a problem in br-ai-nstorm.",
+        "Participant chooses 'Think with my AI' or 'Think privately'.",
+        "br-ai-nstorm exports a structured context package.",
+        "Participant pastes it into ChatGPT, Claude, Mistral, Gemini, a local model, or another LLM.",
+        "Private thinking happens outside br-ai-nstorm.",
+        "The external LLM returns only a bounded contribution package.",
+        "Participant pastes the JSON back into br-ai-nstorm.",
+        "The app validates the schema and enriches shared problem state."
+      ]
+    },
+    "important_theoretical_move": "Do not standardize the internal cognitive process. Standardize the contribution boundary.",
+    "current_schema_names": {
+      "context_package": "ai.bridgework.brainstorm.contextPackage",
+      "contribution_package": "ai.bridgework.brainstorm.contributionPackage"
+    },
+    "future_possible_record_types": [
+      "ai.bridgework.brainstorm.problem",
+      "ai.bridgework.brainstorm.contribution",
+      "ai.bridgework.brainstorm.relation",
+      "ai.bridgework.brainstorm.evaluation",
+      "ai.bridgework.brainstorm.synthesis"
+    ],
+    "possible_evolution": [
+      "clipboard JSON",
+      "download/upload JSON",
+      "API or MCP bridge",
+      "personal AI connectors",
+      "signed portable records",
+      "formal ATProto Lexicons",
+      "federated repositories and independent AppViews"
+    ]
+  },
+  "what_was_built": {
+    "previous_prototype": {
+      "format": "Single standalone HTML file",
+      "features": [
+        "problem tabs",
+        "D3 solution-state map",
+        "since-you-were-here panel",
+        "your-contribution lineage",
+        "think-next prompts",
+        "node provenance",
+        "direct contribution entry",
+        "clipboard JSON export",
+        "JSON import"
+      ],
+      "lesson": "The interaction model felt compelling, but the map needed to be demoted from canonical representation."
+    },
+    "latest_build": {
+      "format": "React + Vite + TypeScript repository",
+      "architecture": [
+        "canonical typed problem state",
+        "State view",
+        "D3 Map view",
+        "Timeline view",
+        "shared contribution model",
+        "provenance-aware nodes",
+        "personal updates",
+        "clipboard aperture module",
+        "Lexicon-like schema documentation"
+      ],
+      "included_use_cases": [
+        "cross-university shared AI service",
+        "Basel heat stress / 15-minute-city",
+        "university researcher onboarding"
+      ],
+      "key_design_decision": "Canonical state first. Map and Timeline are synchronized derived views."
+    }
+  },
+  "what_is_now_deferred": [
+    {
+      "item": "Full Open Cognitive Bubbles protocol",
+      "reason": "Too early before validating the visible interaction."
+    },
+    {
+      "item": "ATProto integration",
+      "reason": "Schema thinking is useful now; federation is not required yet."
+    },
+    {
+      "item": "Kafka",
+      "reason": "Event-style thinking may matter later, but the prototype does not need infrastructure complexity."
+    },
+    {
+      "item": "Graph database",
+      "reason": "The current graph can be represented in normal application state or relational storage."
+    },
+    {
+      "item": "Fully dynamic/generative UI",
+      "reason": "Canonical information architecture must become stable before adding situational UI generation."
+    },
+    {
+      "item": "Project management features",
+      "reason": "Tasks, Kanban, timelines, and delivery workflows would dilute the core collective-problem-solving hypothesis."
+    },
+    {
+      "item": "Automatic consensus",
+      "reason": "Plurality, disagreement, provenance, and uncertainty are intentional parts of the model."
+    }
+  ],
+  "what_is_new_and_promising": [
+    "A problem state that persists independently of any one AI conversation.",
+    "Participants can use arbitrary external LLMs through a common interchange schema.",
+    "The private reasoning process can remain private while bounded outputs become interoperable.",
+    "The system shows what a contribution did to collective thinking, not just that it was posted.",
+    "AI orchestration can personalize what changed and what a participant should think about next.",
+    "The map is repositioned as one exploratory projection rather than the truth model.",
+    "The product wrapper provides a practical way to test the Open Cognitive Bubbles hypothesis without exposing the deeper architecture to users."
+  ],
+  "open_questions": {
+    "product": [
+      "Is br-ai-nstorm best understood as brainstorming, communal problem solving, collaborative sensemaking, or something else?",
+      "What problem type produces the strongest 'this is better than a shared chat' moment?",
+      "Does one-eyesight problem state become valuable enough to create repeat use?"
+    ],
+    "ux": [
+      "What is the clearest canonical structure for first-time users?",
+      "How many semantic categories can users understand without explanation?",
+      "Should the default State view be cards, columns, a structured canvas, or another layout?",
+      "How should evaluation status be shown without turning the system into voting?",
+      "How much provenance should be visible by default?"
+    ],
+    "orchestration": [
+      "What should AI surface automatically versus only on request?",
+      "How can 'think next' prompts feel insightful rather than annoying?",
+      "How can the system avoid reinforcing the loudest or most active contributors?",
+      "How should unresolved minority positions remain visible?"
+    ],
+    "interoperability": [
+      "Can multiple external LLMs reliably consume the same context package and return valid interoperable contributions?",
+      "How much system prompt and shared state is necessary in the exported package?",
+      "Should the context package be a record, a message envelope, or both?",
+      "When does formal ATProto Lexicon work become justified?"
+    ],
+    "privacy": [
+      "When private drafts become richer, what exactly may the exported context reveal?",
+      "Can future similarity/overlap detection be useful without becoming surveillance-like?",
+      "What participant controls are understandable enough to become real aperture permissions?"
+    ]
+  },
+  "next_iteration_plan": {
+    "goal": "Make the canonical State view clearer and more compelling while preserving Map and Timeline as optional synchronized projections.",
+    "priority_1": {
+      "name": "Canonical state model",
+      "tasks": [
+        "Refine semantic categories.",
+        "Define evaluation/status vocabulary.",
+        "Make current solution state understandable in one eyesight.",
+        "Clarify open, supported, disputed, untested, and emerging states."
+      ]
+    },
+    "priority_2": {
+      "name": "Contribution lifecycle",
+      "tasks": [
+        "Show original contribution.",
+        "Show provenance.",
+        "Show later links and reactions.",
+        "Show current role in the problem.",
+        "Support superseded/contradicted/merged relationships without deleting history."
+      ]
+    },
+    "priority_3": {
+      "name": "Clipboard interoperability test",
+      "tasks": [
+        "Test the same exported context with several LLMs.",
+        "Measure schema compliance.",
+        "Compare the quality and diversity of returned contributions.",
+        "Refine the contextPackage and contributionPackage schemas."
+      ]
+    },
+    "priority_4": {
+      "name": "Evaluation",
+      "tasks": [
+        "Add contribution-level epistemic statuses.",
+        "Avoid popularity metrics.",
+        "Test whether status changes make the collective state easier to interpret."
+      ]
+    },
+    "priority_5": {
+      "name": "Real collaborative test",
+      "tasks": [
+        "Choose one bounded real problem.",
+        "Use 3-6 people.",
+        "Let participants use different LLMs.",
+        "Track whether the shared state surfaces useful thinking that would otherwise disappear.",
+        "Compare with ordinary shared chat."
+      ]
+    },
+    "priority_6": {
+      "name": "Future City2Graph connection",
+      "tasks": [
+        "Treat City2Graph output as evidence/context for city problems.",
+        "Allow a spatial projection to become another derived view.",
+        "Do not mix geographic truth with semantic problem-state layout.",
+        "Test Basel heat stress as the first linked case."
+      ]
+    }
+  },
+  "current_hypothesis_to_falsify": {
+    "statement": "A group solving a problem gains value when individual participants can take a canonical shared problem state into their own AI environment and return bounded interoperable contributions, while the shared system continuously shows how the collective understanding is changing.",
+    "success_signals": [
+      "Participants understand the current problem state faster than through shared chat history.",
+      "Participants see useful effects of their own contributions.",
+      "Different external LLMs can contribute through the same schema.",
+      "The system surfaces useful unresolved questions or connections.",
+      "Returned contributions improve the shared state rather than create noise."
+    ],
+    "failure_signals": [
+      "The State view becomes more confusing than chat or a normal whiteboard.",
+      "Users do not care what happened to earlier contributions.",
+      "Clipboard round-trip feels too cumbersome.",
+      "External LLM outputs require too much cleanup.",
+      "Semantic categories become administrative overhead.",
+      "The D3 map looks impressive but contributes little to understanding.",
+      "A normal shared chat plus summary performs just as well."
+    ]
+  },
+  "current_best_summary": {
+    "short": "br-ai-nstorm is becoming a canonical shared problem state with personal AI apertures, not simply a collaborative mind map.",
+    "long": "The latest iteration turns the Open Cognitive Bubbles research idea into a concrete collaborative problem-solving product. A group works around a persistent semantic problem state. Participants can see what changed, what happened to their own contributions, what remains unresolved, and what they might usefully think about next. State is canonical; map and timeline are projections. The first interoperability layer is intentionally primitive: the app exports a Lexicon-like JSON context package into any external LLM, private thinking happens there, and only a bounded structured contribution is copied back. This tests the central hypothesis before building federation, APIs, ATProto infrastructure, or autonomous agents.",
+    "ironic_meta_note": "This update itself is the kind of object br-ai-nstorm should eventually generate automatically: what changed, where the concept moved, what became central, what was deferred, and what remains to think about."
+  }
+}

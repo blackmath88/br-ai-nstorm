@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>br-ai-nstorm — collective problem solving</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+:root{
+  --bg:#f4f1ea;--paper:#fbfaf6;--card:rgba(255,255,255,.78);--ink:#233137;--muted:#6b777c;
+  --line:#d9d2c6;--mint:#a8d8d2;--mint2:#dbeeea;--amber:#e7c78b;--rose:#d9a6aa;
+  --blue:#bfd2e5;--gray:#ddd9d0;--green:#b9d7b3;--shadow:0 18px 45px rgba(36,49,55,.08);
+  --radius:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);
+background:
+radial-gradient(circle at 0% 0%,rgba(168,216,210,.25),transparent 28%),
+radial-gradient(circle at 100% 0%,rgba(231,199,139,.17),transparent 24%),
+linear-gradient(180deg,#fbfaf7,#f1eee6);
+min-height:100vh}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.app{max-width:1600px;margin:0 auto;padding:20px}
+.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{font-weight:900;letter-spacing:-.05em;font-size:26px}
+.logo .ai{color:#637b78}
+.tagline{color:var(--muted);font-size:13px}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:rgba(255,255,255,.68);color:var(--ink);border-radius:12px;padding:10px 13px;font-weight:700;font-size:13px}
+.btn:hover{background:white}
+.btn.primary{background:var(--ink);color:white;border-color:var(--ink)}
+.btn.soft{background:var(--mint2)}
+.tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px;margin-bottom:14px}
+.tab{border:1px solid var(--line);background:rgba(255,255,255,.6);border-radius:999px;padding:9px 13px;white-space:nowrap;font-size:12px;font-weight:800;color:#566469}
+.tab.active{background:var(--ink);color:white;border-color:var(--ink)}
+.layout{display:grid;grid-template-columns:minmax(0,1.55fr) 390px;gap:14px}
+.panel{background:var(--card);border:1px solid rgba(255,255,255,.85);border-radius:var(--radius);box-shadow:var(--shadow);backdrop-filter:blur(12px)}
+.problem-head{padding:22px 24px 14px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.eyebrow{font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#718086;margin-bottom:8px}
+.problem-head h1{font-size:28px;letter-spacing:-.035em;margin:0 0 8px}
+.problem-head p{margin:0;color:var(--muted);line-height:1.5;max-width:800px}
+.state-pill{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 10px;font-size:11px;font-weight:800;white-space:nowrap}
+.map-wrap{position:relative;margin:0 12px 12px;border:1px solid var(--line);border-radius:17px;background:
+linear-gradient(rgba(35,49,55,.025) 1px,transparent 1px),
+linear-gradient(90deg,rgba(35,49,55,.025) 1px,transparent 1px),
+#fbfaf6;background-size:28px 28px;overflow:hidden}
+#map{width:100%;height:650px;display:block}
+.map-legend{position:absolute;left:14px;bottom:12px;background:rgba(251,250,246,.92);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#667278}
+.legend-item{display:flex;align-items:center;gap:5px}.dot{width:8px;height:8px;border-radius:50%}
+.map-note{position:absolute;right:14px;top:12px;background:rgba(251,250,246,.92);border:1px solid var(--line);border-radius:12px;padding:9px 11px;font-size:11px;color:var(--muted);max-width:210px}
+.side{display:grid;gap:14px;align-content:start}
+.side .panel{padding:18px}
+.side h3{margin:0 0 10px;font-size:16px;letter-spacing:-.02em}
+.meta{font-size:11px;color:var(--muted);margin-bottom:10px}
+.feed{display:grid;gap:9px}
+.feed-item{padding:11px 12px;border:1px solid var(--line);border-radius:13px;background:rgba(251,250,246,.8)}
+.feed-item strong{display:block;font-size:12.5px;margin-bottom:4px}
+.feed-item span{font-size:11.5px;color:var(--muted);line-height:1.45}
+.feed-item .impact{margin-top:7px;color:#4e605f;font-weight:700;font-size:11px}
+.prompt-card{padding:12px;border-left:4px solid var(--mint);background:var(--paper);border-radius:0 12px 12px 0;font-size:12px;line-height:1.5}
+.prompt-card + .prompt-card{margin-top:8px}
+.contribute{display:grid;gap:9px}
+textarea{width:100%;min-height:92px;resize:vertical;border:1px solid var(--line);border-radius:13px;padding:12px;background:var(--paper);color:var(--ink);outline:none}
+textarea:focus{border-color:#8aa7a3;box-shadow:0 0 0 3px rgba(168,216,210,.25)}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.small{font-size:11px;color:var(--muted);line-height:1.45}
+.node-details{min-height:120px}
+.node-details .kind{display:inline-flex;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;background:var(--mint2);margin-bottom:8px}
+.node-details h4{font-size:15px;margin:0 0 7px}
+.node-details p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.node-details .source{margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);font-size:10.5px;color:#7a8588}
+.modal{position:fixed;inset:0;background:rgba(25,34,38,.32);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+.modal.open{display:flex}
+.modal-card{width:min(900px,100%);max-height:88vh;overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:0 30px 80px rgba(25,34,38,.2);padding:20px}
+.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+.modal-head h2{margin:0;font-size:20px}
+.jsonbox{width:100%;min-height:360px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:white;padding:11px 14px;border-radius:12px;font-size:12px;font-weight:700;opacity:0;transform:translateY(10px);transition:.2s;z-index:30}
+.toast.show{opacity:1;transform:translateY(0)}
+.node-label{font-size:11px;fill:#2f3e44;pointer-events:none;font-weight:700}
+.node-sublabel{font-size:9px;fill:#7a8589;pointer-events:none}
+.link{stroke:#aab3b4;stroke-opacity:.55}
+.link.contradicts{stroke:#b77b82;stroke-dasharray:4 4}
+.link.supports{stroke:#8eaa8a}
+.link.opens{stroke:#c09d5c;stroke-dasharray:2 4}
+.node-circle{stroke:#fff;stroke-width:2;filter:drop-shadow(0 4px 7px rgba(35,49,55,.12))}
+@media(max-width:1080px){.layout{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}.side .panel:last-child{grid-column:1/-1}}
+@media(max-width:700px){.app{padding:12px}.topbar{align-items:flex-start}.tagline{display:none}.side{grid-template-columns:1fr}.problem-head{flex-direction:column}.problem-head h1{font-size:23px}#map{height:540px}.map-note{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">br-<span class="ai">ai</span>-nstorm</div>
+      <div class="tagline">a living map of collective problem solving</div>
+    </div>
+    <div class="top-actions">
+      <button class="btn soft" id="copyContextBtn">Think with my AI ↗</button>
+      <button class="btn" id="pasteResultBtn">Import AI result</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="problem-head">
+        <div>
+          <div class="eyebrow">Shared problem</div>
+          <h1 id="problemTitle"></h1>
+          <p id="problemDescription"></p>
+        </div>
+        <div class="state-pill" id="problemState"></div>
+      </div>
+      <div class="map-wrap">
+        <svg id="map" aria-label="Living solution-state map"></svg>
+        <div class="map-note">The map shows <strong>solution state</strong>, not just ideas: questions, evidence, approaches, contradictions and emerging synthesis.</div>
+        <div class="map-legend">
+          <span class="legend-item"><span class="dot" style="background:var(--blue)"></span>question</span>
+          <span class="legend-item"><span class="dot" style="background:var(--mint)"></span>approach</span>
+          <span class="legend-item"><span class="dot" style="background:var(--green)"></span>evidence</span>
+          <span class="legend-item"><span class="dot" style="background:var(--amber)"></span>assumption</span>
+          <span class="legend-item"><span class="dot" style="background:var(--rose)"></span>contradiction</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="eyebrow">Since you were here</div>
+        <h3>What moved</h3>
+        <div class="feed" id="changedFeed"></div>
+      </section>
+
+      <section class="panel">
+        <div class="eyebrow">Your traces</div>
+        <h3>What happened to your contributions</h3>
+        <div class="feed" id="myFeed"></div>
+      </section>
+
+      <section class="panel">
+        <div class="eyebrow">Orchestration</div>
+        <h3>What you should think about next</h3>
+        <div id="thinkNext"></div>
+      </section>
+
+      <section class="panel">
+        <div class="eyebrow">Selected node</div>
+        <div class="node-details" id="nodeDetails">
+          <p>Tap a node on the map to inspect its provenance and current role.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="eyebrow">Contribute</div>
+        <h3>Add a thought</h3>
+        <div class="contribute">
+          <textarea id="contributionText" placeholder="An idea, question, objection, experience, evidence..."></textarea>
+          <div class="controls">
+            <button class="btn primary" id="addContributionBtn">Add to problem</button>
+            <button class="btn" id="privateThinkBtn">Think privately ↗</button>
+          </div>
+          <div class="small">No need to classify first. The system can propose a contribution type and relationship after you write.</div>
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<div class="modal" id="jsonModal" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow" id="modalEyebrow">Aperture payload</div>
+        <h2 id="modalTitle">Think with your AI</h2>
+      </div>
+      <button class="btn" id="closeModalBtn">Close</button>
+    </div>
+    <p class="small" id="modalHelp"></p>
+    <textarea class="jsonbox" id="jsonBox"></textarea>
+    <div class="controls" style="margin-top:10px">
+      <button class="btn primary" id="modalPrimaryBtn">Copy JSON</button>
+      <button class="btn" id="modalSecondaryBtn">Validate & import</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const me = { id:"person:achim", name:"Achim" };
+
+const problems = [
+  {
+    id:"campus-ai",
+    title:"How could universities jointly run an open AI service?",
+    description:"A cross-institutional problem spanning governance, product ownership, infrastructure, funding, trust and adoption.",
+    state:"3 approaches · 2 tensions · 4 open questions",
+    updated:[
+      ["Ownership became central","Three contributions now point to product ownership as the unresolved bottleneck."],
+      ["A local-service approach gained evidence","New evidence suggests technical feasibility is less uncertain than governance."],
+      ["Funding split into two questions","Build funding and long-term service funding are now separate branches."]
+    ],
+    mine:[
+      ["“Maybe service ownership matters more than tooling.”","→ connected to 4 contributions · now part of the ownership branch"],
+      ["“Could several universities co-own the product?”","→ triggered 2 responses · still unresolved"],
+      ["“Open source alone does not solve operations.”","→ supported by evidence from another contributor"]
+    ],
+    next:[
+      "You have pushed the ownership question several times. What would a minimal shared Product Owner model actually require?",
+      "The group has lots of governance thinking but little evidence on recurring operating cost. Can you bring or request data?",
+      "One approach assumes institutions want a shared service. That assumption has not been tested."
+    ],
+    nodes:[
+      {id:"p",kind:"problem",label:"Shared AI service",sub:"the problem",x:470,y:320,weight:30},
+      {id:"q1",kind:"question",label:"Who owns it?",sub:"open",weight:22,author:"Kai"},
+      {id:"q2",kind:"question",label:"Who operates it?",sub:"open",weight:19,author:"Lea"},
+      {id:"a1",kind:"approach",label:"Shared service",sub:"emerging",weight:24,author:"Achim"},
+      {id:"a2",kind:"approach",label:"Local instances",sub:"viable",weight:19,author:"Mara"},
+      {id:"a3",kind:"approach",label:"OSS + federation",sub:"speculative",weight:20,author:"Jonas"},
+      {id:"e1",kind:"evidence",label:"Infra feasible",sub:"supported",weight:15,author:"Lea"},
+      {id:"e2",kind:"evidence",label:"Overlapping needs",sub:"supported",weight:16,author:"Achim"},
+      {id:"as1",kind:"assumption",label:"Institutions want shared ops",sub:"untested",weight:15,author:"AI synthesis"},
+      {id:"c1",kind:"contradiction",label:"OSS ≠ service ownership",sub:"tension",weight:15,author:"Achim"},
+      {id:"q3",kind:"question",label:"Recurring funding?",sub:"open",weight:17,author:"Mara"},
+      {id:"s1",kind:"approach",label:"Product + service model",sub:"emerging synthesis",weight:25,author:"Group"}
+    ],
+    links:[
+      ["p","q1","opens"],["p","q2","opens"],["p","a1","supports"],["p","a2","supports"],["p","a3","supports"],
+      ["e1","a1","supports"],["e2","a1","supports"],["q1","s1","supports"],["q2","s1","supports"],
+      ["c1","a3","contradicts"],["as1","a1","supports"],["q3","s1","opens"],["a1","s1","supports"]
+    ]
+  },
+  {
+    id:"basel-heat",
+    title:"How could Basel reduce heat stress within a 15-minute-city model?",
+    description:"A city-scale problem combining mobility, shade, green space, vulnerable populations, public realm, routing and live urban data.",
+    state:"4 intervention areas · 3 evidence gaps",
+    updated:[
+      ["Shade moved from amenity to infrastructure","Several contributions now frame shade as a network property rather than isolated trees."],
+      ["Routing emerged as an intervention","A new branch asks whether routes should optimize heat exposure, not just travel time."],
+      ["Vulnerability data is missing","The map has intervention ideas but weak evidence about who is most affected where."]
+    ],
+    mine:[
+      ["“What if cool routes are a routing layer?”","→ became a new intervention branch"],
+      ["“Transit stops are heat nodes too.”","→ linked to shade + vulnerable-user contributions"]
+    ],
+    next:[
+      "You already think spatially: what would a 'cool-route score' actually combine?",
+      "The group has intervention ideas but almost no temporal data. What changes at 10:00 vs 16:00?",
+      "Could one City2Graph query expose where shade, walking, transit and vulnerability intersect?"
+    ],
+    nodes:[
+      {id:"p",kind:"problem",label:"Heat stress",sub:"Basel",weight:30},
+      {id:"q1",kind:"question",label:"Where is exposure worst?",sub:"open",weight:21,author:"Nina"},
+      {id:"a1",kind:"approach",label:"Cool routes",sub:"emerging",weight:24,author:"Achim"},
+      {id:"a2",kind:"approach",label:"Shade network",sub:"strong",weight:23,author:"Luca"},
+      {id:"a3",kind:"approach",label:"Cool transit stops",sub:"emerging",weight:19,author:"Achim"},
+      {id:"a4",kind:"approach",label:"Pocket cooling",sub:"speculative",weight:17,author:"Mira"},
+      {id:"e1",kind:"evidence",label:"Tree canopy gaps",sub:"needs spatial proof",weight:15,author:"Mira"},
+      {id:"e2",kind:"evidence",label:"Walking exposure",sub:"plausible",weight:14,author:"AI synthesis"},
+      {id:"as1",kind:"assumption",label:"Shortest ≠ coolest",sub:"testable",weight:15,author:"Achim"},
+      {id:"q2",kind:"question",label:"Who is vulnerable?",sub:"evidence gap",weight:18,author:"Nina"},
+      {id:"q3",kind:"question",label:"What changes by hour?",sub:"open",weight:17,author:"Luca"},
+      {id:"c1",kind:"contradiction",label:"Green space ≠ route access",sub:"tension",weight:14,author:"Mira"}
+    ],
+    links:[
+      ["p","q1","opens"],["p","a1","supports"],["p","a2","supports"],["p","a3","supports"],["p","a4","supports"],
+      ["as1","a1","supports"],["e2","a1","supports"],["e1","a2","supports"],["c1","a2","contradicts"],
+      ["q2","a3","opens"],["q3","a1","opens"],["a2","a1","supports"]
+    ]
+  },
+  {
+    id:"research-onboarding",
+    title:"How might a university cut new-researcher onboarding time in half?",
+    description:"A people-and-process problem: fragmented information, local practices, IT access, role clarity, tacit knowledge and institutional complexity.",
+    state:"2 strong causes · 5 candidate interventions",
+    updated:[
+      ["Tacit knowledge became visible","Multiple people independently described 'who to ask' as more important than formal documentation."],
+      ["Access delays separated from learning delays","The problem now has two causal branches instead of one onboarding bucket."],
+      ["A buddy model is challenged","Evidence suggests buddy quality varies too much to make it the only intervention."]
+    ],
+    mine:[
+      ["“The real interface is often another human.”","→ connected to tacit knowledge + expert routing"],
+      ["“Could AI route people to the right person, not just the right page?”","→ now a candidate intervention"]
+    ],
+    next:[
+      "What information should never be answered by AI and should instead route to a responsible person?",
+      "The access-delay branch lacks timestamps. What could be measured automatically?",
+      "A strong assumption is that documentation exists but is hard to find. Is that actually true?"
+    ],
+    nodes:[
+      {id:"p",kind:"problem",label:"Researcher onboarding",sub:"too slow",weight:30},
+      {id:"q1",kind:"question",label:"Where is time lost?",sub:"open",weight:21,author:"Sofia"},
+      {id:"a1",kind:"approach",label:"Expert routing",sub:"promising",weight:24,author:"Achim"},
+      {id:"a2",kind:"approach",label:"Access automation",sub:"strong",weight:22,author:"IT"},
+      {id:"a3",kind:"approach",label:"Living onboarding map",sub:"emerging",weight:19,author:"Sofia"},
+      {id:"a4",kind:"approach",label:"Buddy system",sub:"mixed evidence",weight:17,author:"HR"},
+      {id:"e1",kind:"evidence",label:"Access takes days",sub:"supported",weight:15,author:"IT"},
+      {id:"e2",kind:"evidence",label:"Tacit 'who knows?' gap",sub:"supported",weight:17,author:"Achim"},
+      {id:"c1",kind:"contradiction",label:"Buddy quality varies",sub:"challenge",weight:15,author:"Sofia"},
+      {id:"as1",kind:"assumption",label:"Docs already exist",sub:"untested",weight:14,author:"AI synthesis"},
+      {id:"q2",kind:"question",label:"What must stay human?",sub:"open",weight:17,author:"HR"}
+    ],
+    links:[
+      ["p","q1","opens"],["p","a1","supports"],["p","a2","supports"],["p","a3","supports"],["p","a4","supports"],
+      ["e1","a2","supports"],["e2","a1","supports"],["c1","a4","contradicts"],["as1","a3","supports"],["q2","a1","opens"]
+    ]
+  },
+  {
+    id:"community-governance",
+    title:"How can an open community move from exchange to shared experiments?",
+    description:"A community problem about participation, trust, ownership, lightweight governance and turning conversations into bounded collective action.",
+    state:"3 governance patterns · 1 experiment ready",
+    updated:[
+      ["The problem shifted from tooling to ownership","People agree the technical platform is secondary to who carries product and service responsibility."],
+      ["A bounded experiment is now favored","The group is converging on testing one use case instead of designing a full governance model."],
+      ["Contribution offers remain vague","Interest is high, but only two concrete contribution commitments exist."]
+    ],
+    mine:[
+      ["“Service instead of tool.”","→ became a central framing node"],
+      ["“Can we move from exchange to doing?”","→ now the root of the experiment branch"]
+    ],
+    next:[
+      "What is the smallest experiment that forces real shared ownership?",
+      "Which responsibilities must exist even if nobody wants to formalize them?",
+      "How would a community know the experiment created enough value to continue?"
+    ],
+    nodes:[
+      {id:"p",kind:"problem",label:"Community → action",sub:"shared experiment",weight:30},
+      {id:"q1",kind:"question",label:"Who owns product?",sub:"open",weight:21,author:"Kai"},
+      {id:"q2",kind:"question",label:"Who operates service?",sub:"open",weight:20,author:"Achim"},
+      {id:"a1",kind:"approach",label:"Bounded MAKE experiment",sub:"ready",weight:24,author:"Group"},
+      {id:"a2",kind:"approach",label:"Shared PO model",sub:"emerging",weight:21,author:"Achim"},
+      {id:"a3",kind:"approach",label:"Loose OSS commons",sub:"weak ownership",weight:18,author:"FHNW"},
+      {id:"e1",kind:"evidence",label:"Overlapping needs",sub:"supported",weight:15,author:"Community"},
+      {id:"c1",kind:"contradiction",label:"Interest ≠ commitment",sub:"tension",weight:16,author:"AI synthesis"},
+      {id:"as1",kind:"assumption",label:"One tool can unite us",sub:"challenged",weight:14,author:"Group"},
+      {id:"s1",kind:"approach",label:"Product + service",sub:"strong synthesis",weight:23,author:"Achim"}
+    ],
+    links:[
+      ["p","q1","opens"],["p","q2","opens"],["p","a1","supports"],["p","a2","supports"],["p","a3","supports"],
+      ["e1","a1","supports"],["q1","a2","opens"],["q2","s1","opens"],["c1","a3","contradicts"],["as1","a3","contradicts"],["a2","s1","supports"],["a1","s1","supports"]
+    ]
+  }
+];
+
+let current = problems[0];
+let modalMode = "copy";
+let simulation = null;
+
+const colors = {
+  problem:"#2f3d43", question:"#bfd2e5", approach:"#a8d8d2",
+  evidence:"#b9d7b3", assumption:"#e7c78b", contradiction:"#d9a6aa"
+};
+
+const tabs = document.getElementById("tabs");
+const title = document.getElementById("problemTitle");
+const desc = document.getElementById("problemDescription");
+const state = document.getElementById("problemState");
+const changedFeed = document.getElementById("changedFeed");
+const myFeed = document.getElementById("myFeed");
+const thinkNext = document.getElementById("thinkNext");
+const nodeDetails = document.getElementById("nodeDetails");
+const contributionText = document.getElementById("contributionText");
+const modal = document.getElementById("jsonModal");
+const jsonBox = document.getElementById("jsonBox");
+const modalTitle = document.getElementById("modalTitle");
+const modalHelp = document.getElementById("modalHelp");
+const modalPrimaryBtn = document.getElementById("modalPrimaryBtn");
+const modalSecondaryBtn = document.getElementById("modalSecondaryBtn");
+const toast = document.getElementById("toast");
+
+function showToast(text){
+  toast.textContent=text;
+  toast.classList.add("show");
+  setTimeout(()=>toast.classList.remove("show"),1700);
+}
+
+function renderTabs(){
+  tabs.innerHTML="";
+  problems.forEach(p=>{
+    const b=document.createElement("button");
+    b.className="tab"+(p.id===current.id?" active":"");
+    b.textContent=p.title.replace("How could ","").replace("How might ","").replace("How can ","");
+    b.addEventListener("click",()=>{current=p;render();});
+    tabs.appendChild(b);
+  });
+}
+
+function renderFeeds(){
+  changedFeed.innerHTML=current.updated.map(([h,t])=>`<div class="feed-item"><strong>${h}</strong><span>${t}</span></div>`).join("");
+  myFeed.innerHTML=current.mine.map(([h,t])=>`<div class="feed-item"><strong>${h}</strong><div class="impact">${t}</div></div>`).join("");
+  thinkNext.innerHTML=current.next.map(t=>`<div class="prompt-card">${t}</div>`).join("");
+}
+
+function nodeRadius(d){ return Math.max(14, Math.min(30, 9+d.weight*.55)); }
+
+function renderMap(){
+  const svg=d3.select("#map");
+  svg.selectAll("*").remove();
+  const box=document.getElementById("map").getBoundingClientRect();
+  const width=Math.max(600,box.width), height=Math.max(520,box.height);
+  svg.attr("viewBox",`0 0 ${width} ${height}`);
+
+  const nodes=current.nodes.map(d=>({...d}));
+  const links=current.links.map(([source,target,type])=>({source,target,type}));
+
+  const simulationLocal=d3.forceSimulation(nodes)
+    .force("link",d3.forceLink(links).id(d=>d.id).distance(d=>d.type==="supports"?105:125).strength(.55))
+    .force("charge",d3.forceManyBody().strength(-430))
+    .force("center",d3.forceCenter(width/2,height/2))
+    .force("collision",d3.forceCollide().radius(d=>nodeRadius(d)+30))
+    .force("x",d3.forceX(width/2).strength(.035))
+    .force("y",d3.forceY(height/2).strength(.035));
+
+  const link=svg.append("g").selectAll("line").data(links).enter().append("line")
+    .attr("class",d=>"link "+d.type).attr("stroke-width",d=>d.type==="supports"?2:1.5);
+
+  const node=svg.append("g").selectAll("g").data(nodes).enter().append("g")
+    .style("cursor","pointer")
+    .call(d3.drag()
+      .on("start",(event,d)=>{if(!event.active)simulationLocal.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on("drag",(event,d)=>{d.fx=event.x;d.fy=event.y;})
+      .on("end",(event,d)=>{if(!event.active)simulationLocal.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .on("click",(event,d)=>showNode(d));
+
+  node.append("circle").attr("class","node-circle")
+    .attr("r",d=>nodeRadius(d))
+    .attr("fill",d=>colors[d.kind]||"#ddd")
+    .attr("stroke",d=>d.kind==="problem"?"#2f3d43":"#fff")
+    .attr("stroke-width",d=>d.kind==="problem"?4:2);
+
+  node.append("text").attr("class","node-label").attr("text-anchor","middle")
+    .attr("dy",d=>nodeRadius(d)+16).text(d=>d.label);
+  node.append("text").attr("class","node-sublabel").attr("text-anchor","middle")
+    .attr("dy",d=>nodeRadius(d)+29).text(d=>d.sub||"");
+
+  simulationLocal.on("tick",()=>{
+    link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+    node.attr("transform",d=>`translate(${Math.max(45,Math.min(width-45,d.x))},${Math.max(45,Math.min(height-55,d.y))})`);
+  });
+  simulation=simulationLocal;
+}
+
+function showNode(d){
+  const kind=d.kind==="problem"?"problem":d.kind;
+  nodeDetails.innerHTML=`
+    <span class="kind">${kind}</span>
+    <h4>${d.label}</h4>
+    <p>Current state: <strong>${d.sub||"active"}</strong>. This node is part of the shared problem map and can accumulate support, contradiction, evidence and follow-up questions.</p>
+    <div class="source">Provenance · ${d.author||"shared problem"} · visible to problem participants</div>`;
+}
+
+function render(){
+  renderTabs();
+  title.textContent=current.title;
+  desc.textContent=current.description;
+  state.textContent=current.state;
+  renderFeeds();
+  nodeDetails.innerHTML="<p>Tap a node on the map to inspect its provenance and current role.</p>";
+  setTimeout(renderMap,0);
+}
+
+function contextPayload(privateDraft=""){
+  return {
+    "$type":"ai.brainstorm.contextPackage",
+    "lexicon_version":"0.1",
+    "problem":{
+      "id":current.id,
+      "title":current.title,
+      "description":current.description,
+      "solution_state":current.state
+    },
+    "participant":{
+      "id":me.id,
+      "display_name":me.name
+    },
+    "shared_state":{
+      "nodes":current.nodes.map(({id,kind,label,sub,author})=>({id,kind,label,status:sub,attributed_to:author||null})),
+      "relationships":current.links.map(([source,target,type])=>({source,target,type}))
+    },
+    "personal_state":{
+      "my_contribution_updates":current.mine.map(([contribution,impact])=>({contribution,impact})),
+      "what_changed":current.updated.map(([title,detail])=>({title,detail})),
+      "orchestration_prompts":current.next,
+      "private_draft":privateDraft||null
+    },
+    "aperture":{
+      "mode":"reviewed_contribution",
+      "private_process_disclosed":false,
+      "rules":[
+        "Use this context to help the participant think privately.",
+        "Do not treat attributed statements as universal truth.",
+        "Preserve disagreement and provenance.",
+        "Do not infer endorsement from mere inclusion in shared state.",
+        "Only the final JSON contribution package will be returned to the shared problem."
+      ]
+    },
+    "system_prompt":"You are the participant's private thinking partner for a shared problem. Explore freely with the participant. When asked to return a contribution, output ONLY valid JSON matching expected_output_schema. Produce bounded contributions rather than a transcript of the private reasoning process.",
+    "expected_output_schema":{
+      "$type":"ai.brainstorm.contributionPackage",
+      "problem_id":current.id,
+      "participant_id":me.id,
+      "contributions":[
+        {
+          "kind":"question | claim | evidence | assumption | approach | contradiction",
+          "content":"string",
+          "confidence":"low | medium | high",
+          "relation_to":["optional node ids"],
+          "endorsement":"participant_review_required"
+        }
+      ],
+      "private_process_disclosed":false
+    }
+  };
+}
+
+function openCopyModal(privateMode=false){
+  modalMode="copy";
+  modal.classList.add("open");
+  modalTitle.textContent=privateMode?"Think privately with your AI":"Think with your AI";
+  modalHelp.textContent="Copy this state package into ChatGPT, Claude, Mistral or another LLM. Have the private conversation there, then ask it to return only the contributionPackage JSON.";
+  jsonBox.value=JSON.stringify(contextPayload(privateMode?contributionText.value.trim():""),null,2);
+  modalPrimaryBtn.textContent="Copy JSON";
+  modalSecondaryBtn.style.display="none";
+}
+
+function openImportModal(){
+  modalMode="import";
+  modal.classList.add("open");
+  modalTitle.textContent="Import AI contribution";
+  modalHelp.textContent="Paste the contributionPackage JSON returned by your external LLM. br-ai-nstorm will validate the minimal schema and add each contribution to the shared problem map.";
+  jsonBox.value=`{
+  "$type": "ai.brainstorm.contributionPackage",
+  "problem_id": "${current.id}",
+  "participant_id": "${me.id}",
+  "contributions": []
+}`;
+  modalPrimaryBtn.textContent="Validate & import";
+  modalSecondaryBtn.style.display="none";
+}
+
+function addContributionObject(c){
+  const kind=["question","evidence","assumption","approach","contradiction"].includes(c.kind)?c.kind:"approach";
+  const id="u"+Date.now()+Math.random().toString(16).slice(2,6);
+  const label=(c.content||"New contribution").slice(0,42)+(c.content?.length>42?"…":"");
+  current.nodes.push({id,kind,label,sub:"new contribution",weight:16,author:me.name});
+  const target=(c.relation_to&&c.relation_to[0])||"p";
+  current.links.push([target,id,kind==="contradiction"?"contradicts":"opens"]);
+  current.updated.unshift(["New contribution added",c.content||label]);
+}
+
+function importPackage(){
+  try{
+    const data=JSON.parse(jsonBox.value);
+    if(data.$type!=="ai.brainstorm.contributionPackage") throw new Error("Wrong $type.");
+    if(data.problem_id!==current.id) throw new Error("This package belongs to another problem.");
+    if(!Array.isArray(data.contributions)) throw new Error("contributions must be an array.");
+    data.contributions.slice(0,10).forEach(addContributionObject);
+    modal.classList.remove("open");
+    render();
+    showToast(`${data.contributions.length} contribution${data.contributions.length===1?"":"s"} imported`);
+  }catch(e){ showToast("Could not import: "+e.message); }
+}
+
+document.getElementById("copyContextBtn").addEventListener("click",()=>openCopyModal(false));
+document.getElementById("privateThinkBtn").addEventListener("click",()=>openCopyModal(true));
+document.getElementById("pasteResultBtn").addEventListener("click",openImportModal);
+document.getElementById("closeModalBtn").addEventListener("click",()=>modal.classList.remove("open"));
+modal.addEventListener("click",e=>{if(e.target===modal)modal.classList.remove("open")});
+
+modalPrimaryBtn.addEventListener("click",async()=>{
+  if(modalMode==="import"){ importPackage(); return; }
+  try{
+    await navigator.clipboard.writeText(jsonBox.value);
+    showToast("Context copied");
+  }catch{
+    jsonBox.focus();jsonBox.select();document.execCommand("copy");showToast("Context selected/copied");
+  }
+});
+
+document.getElementById("addContributionBtn").addEventListener("click",()=>{
+  const text=contributionText.value.trim();
+  if(!text){showToast("Write a thought first");return;}
+  let kind="approach";
+  if(text.endsWith("?"))kind="question";
+  if(/\bbut\b|\bhowever\b|\bdoesn't\b|\bnot\b/i.test(text))kind="contradiction";
+  addContributionObject({kind,content:text,relation_to:["p"]});
+  contributionText.value="";
+  render();showToast("Contribution added");
+});
+
+window.addEventListener("resize",()=>{if(simulation)simulation.stop();renderMap();});
+render();
+</script>
+</body>
+</html>
