@@ -75,6 +75,41 @@ describe('json repository', () => {
     const reopened = createJsonRepository({ file })
     expect((await reopened.read()).map((e) => e.id)).toEqual(['a', 'b'])
   })
+
+  /**
+   * `npm run dev:server` and `npm run mcp` are two processes over one log. A
+   * cache that only asked "have I loaded once?" made each blind to the other —
+   * so a contribution made over stdio MCP never appeared in React, and the next
+   * HTTP write erased it. The in-process tests all passed while this was broken,
+   * because they share one repository instance.
+   */
+  it('sees writes made by another instance over the same file', async () => {
+    const file = join(dir, 'shared.json')
+    const httpSide = createJsonRepository({ file })
+    const mcpSide = createJsonRepository({ file })
+
+    await httpSide.append([event('from-http')])
+    // The HTTP side has now cached. The MCP side writes underneath it.
+    expect((await httpSide.read()).map((e) => e.id)).toEqual(['from-http'])
+
+    await mcpSide.append([event('from-mcp')])
+
+    expect((await httpSide.read()).map((e) => e.id)).toEqual(['from-http', 'from-mcp'])
+  })
+
+  it('appends on top of another instance rather than erasing it', async () => {
+    const file = join(dir, 'nonclobber.json')
+    const a = createJsonRepository({ file })
+    const b = createJsonRepository({ file })
+
+    await a.append([event('a1')])
+    await b.append([event('b1')])
+    await a.append([event('a2')])
+    await b.append([event('b2')])
+
+    const ids = (await createJsonRepository({ file }).read()).map((e) => e.id)
+    expect(ids).toEqual(['a1', 'b1', 'a2', 'b2'])
+  })
 })
 
 describe('durable round trip', () => {

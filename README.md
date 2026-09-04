@@ -84,6 +84,40 @@ npm run dev
 
 Then pick a participant — Achim, Kai, Lea or Mara — and contribute.
 
+### Demo data
+
+The seed alone leaves the interesting surfaces empty — no conflicts, no
+proposals, nothing superseded — so you would have to hand-type text that happens
+to trip the curator before you could see any of it.
+
+```bash
+npm run demo:reset     # wipe the log, rebuild seed + scenario
+npm run demo           # add the scenario to an existing log
+```
+
+This writes a scripted multi-participant story **through the real application
+services**, so every proposal in it was produced by the actual curator rather
+than fabricated, and the data cannot express anything the domain would refuse.
+
+After running it:
+
+| Surface | What is there |
+|---|---|
+| **State** | `campus-ai` opens with an accepted, unresolved conflict above the columns, and a superseded contribution kept at the bottom |
+| **Curation** | a queue ordered most-consequential-first — conflicts, a duplicate, a relation, then reclassifications — plus accepted and rejected decisions in history |
+| **Timeline** | the whole story spread over the last week, with the curator named on proposals and people on decisions |
+| **Your traces** | all four participants contributed, so each sees a different "what happened to your contributions" |
+| **Provenance** | one contribution is AI-drafted (`preparedBy` set, `participant_review_required`) and one arrived over MCP |
+| **Empty states** | `research-onboarding` is left untouched, so the quiet-problem case is visible too |
+
+The scenario is covered by `server/test/demo.test.ts`, which fails if any of
+those surfaces comes out empty — the first draft silently produced no duplicate
+proposal (0.700 against a 0.72 threshold) and nothing at all for `basel-heat`.
+
+> Restarting `npm run dev:server` invalidates prototype session tokens, because
+> they live in that process's memory. The app says so and returns you to the
+> participant picker.
+
 Checks:
 
 ```bash
@@ -266,13 +300,14 @@ server/
   auth/              actor-context (port) · prototype-auth (adapter)
   mcp/               create-server · register-tools · stdio · http
   http/              api · server
+  demo/              scripted multi-participant scenario for hand testing
   container.ts       composition root — the only place that reads env
-  test/              domain · api · mcp · persistence · integration
+  test/              domain · api · mcp · persistence · integration · demo
 ```
 
 ## Tests
 
-`npm test` — 54 tests across five files.
+`npm test` — 63 tests across six files.
 
 The decisive one is `server/test/integration.test.ts`: Kai contributes over
 HTTP, the curator proposes a conflict, Achim accepts it, the conflict becomes
@@ -281,9 +316,15 @@ canonical state, Lea contributes through MCP, React sees it, and the history
 carries the whole provenance chain — all against **one** service instance driven
 through both transports at once.
 
-`server/test/persistence.test.ts` covers the concurrency fix: v0.2's
-read-modify-write store kept **1 of 50** concurrent appends (measured, not
-assumed); the current store keeps all 50.
+`server/test/persistence.test.ts` covers two storage fixes:
+
+- v0.2's read-modify-write store kept **1 of 50** concurrent appends (measured,
+  not assumed); the current store keeps all 50.
+- The store now re-checks the file before every read, so `npm run dev:server`
+  and `npm run mcp` — two processes over one log — see each other's writes. The
+  earlier cache made each blind to the other, so a contribution made over stdio
+  MCP never reached React and the next HTTP write erased it. Every in-process
+  test passed while that was broken, because they share one repository instance.
 
 ## What is intentionally still missing
 

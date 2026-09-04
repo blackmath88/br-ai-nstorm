@@ -14,6 +14,25 @@ const KIND_COPY: Record<CurationProposal['kind'], { title: string; accept: strin
   classification: { title: 'Possible reclassification', accept: 'Accept' },
 }
 
+/**
+ * Review order, most consequential first. Accepting a conflict changes what the
+ * group is looking at; accepting a reclassification moves a card between two
+ * columns. Insertion order buried the conflicts under a run of cheap
+ * classification proposals, which is the wrong thing to put in front of someone
+ * with limited attention.
+ */
+const KIND_RANK: Record<CurationProposal['kind'], number> = {
+  conflict: 0,
+  duplicate: 1,
+  relation: 2,
+  classification: 3,
+}
+
+const byReviewPriority = (a: CurationProposal, b: CurationProposal): number =>
+  KIND_RANK[a.kind] !== KIND_RANK[b.kind]
+    ? KIND_RANK[a.kind] - KIND_RANK[b.kind]
+    : b.confidence - a.confidence
+
 export function CurationPanel({
   proposals,
   contributions,
@@ -25,8 +44,12 @@ export function CurationPanel({
   onReview: (proposalId: string, accept: boolean) => void
   busy: boolean
 }) {
-  const pending = proposals.filter((p) => p.status === 'pending')
-  const reviewed = proposals.filter((p) => p.status !== 'pending')
+  const pending = proposals.filter((p) => p.status === 'pending').sort(byReviewPriority)
+  // Most recently decided first — the history is for checking what just
+  // happened, not for reading from the beginning.
+  const reviewed = proposals
+    .filter((p) => p.status !== 'pending')
+    .sort((a, b) => (b.reviewedAt ?? '').localeCompare(a.reviewedAt ?? ''))
   const labels = new Map(contributions.map((c) => [c.id, c.label]))
   const label = (id?: string) => (id ? (labels.get(id) ?? id) : '—')
 
@@ -38,6 +61,12 @@ export function CurationPanel({
       </p>
 
       {pending.length === 0 && <p className="muted">Nothing waiting for review.</p>}
+
+      {pending.length > 0 && (
+        <div className="section-kicker">
+          Awaiting review · {pending.length} · most consequential first
+        </div>
+      )}
 
       <div className="curation-list">
         {pending.map((proposal) => (

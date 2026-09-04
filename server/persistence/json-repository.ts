@@ -12,7 +12,7 @@
  * promise chain, and the file is replaced atomically via a temp file + rename
  * so a crash mid-write cannot leave a truncated log.
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import type { MemoryEvent } from '../domain/events.js'
 import type { EventRepository } from './repository.js'
@@ -29,6 +29,15 @@ interface LogDocument {
 export function createJsonRepository(options: JsonRepositoryOptions): EventRepository {
   const file = resolve(options.file)
   let cache: MemoryEvent[] | undefined
+  /**
+   * The file identity the cache was built from. Two processes share this log in
+   * normal use — `npm run dev:server` and `npm run mcp` — so a cache that only
+   * checked "have I loaded once?" would make each process blind to the other's
+   * writes, and an append would clobber them. That is proof point 8 (a
+   * contribution from MCP becoming visible in React) failing in real use while
+   * the in-process tests still passed.
+   */
+  let stamp: string | undefined
   /** Serialises every read-or-write so file access never interleaves. */
   let queue: Promise<unknown> = Promise.resolve()
 
@@ -38,16 +47,30 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
     return run
   }
 
-  const loadUnsafe = async (): Promise<MemoryEvent[]> => {
-    if (cache) return cache
+  /** Identity of the file as it is on disk right now, or undefined if absent. */
+  const currentStamp = async (): Promise<string | undefined> => {
     try {
-      const raw = await readFile(file, 'utf8')
-      const parsed = JSON.parse(raw) as LogDocument | MemoryEvent[]
-      cache = Array.isArray(parsed) ? parsed : (parsed.events ?? [])
+      const info = await stat(file)
+      return `${info.mtimeMs}:${info.size}`
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      cache = []
+      return undefined
     }
+  }
+
+  const loadUnsafe = async (): Promise<MemoryEvent[]> => {
+    const disk = await currentStamp()
+    // Reuse the cache only while the file on disk is the one we cached.
+    if (cache && stamp === disk) return cache
+    if (disk === undefined) {
+      cache = []
+      stamp = undefined
+      return cache
+    }
+    const raw = await readFile(file, 'utf8')
+    const parsed = JSON.parse(raw) as LogDocument | MemoryEvent[]
+    cache = Array.isArray(parsed) ? parsed : (parsed.events ?? [])
+    stamp = disk
     return cache
   }
 
@@ -57,16 +80,19 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
     const temp = `${file}.${process.pid}.tmp`
     await writeFile(temp, JSON.stringify(document, null, 2))
     await rename(temp, file)
+    stamp = await currentStamp()
   }
 
   return {
     append: (events) =>
       enqueue(async () => {
         if (events.length === 0) return
+        // Re-reads through loadUnsafe, which re-checks the file, so appends
+        // land on top of another process's writes instead of erasing them.
         const current = await loadUnsafe()
         const next = [...current, ...events]
-        await saveUnsafe(next)
         cache = next
+        await saveUnsafe(next)
       }),
 
     read: (problemId) =>

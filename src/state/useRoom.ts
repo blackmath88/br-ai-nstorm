@@ -144,8 +144,12 @@ export function useRoom(): Room {
       } catch (err) {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) {
+          // Prototype tokens live in the server's memory, so restarting
+          // `npm run dev:server` invalidates them. Say so rather than dropping
+          // the user back at the picker with no explanation.
           saveSession(null)
           setSession(null)
+          setNotice('Your session ended (the server restarted). Pick a participant to continue.')
           setPhase('ready')
           return
         }

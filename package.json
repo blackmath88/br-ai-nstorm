@@ -7,6 +7,8 @@
     "dev": "vite",
     "dev:server": "tsx server/http/server.ts",
     "mcp": "tsx server/mcp/stdio.ts",
+    "demo": "tsx server/demo/run.ts",
+    "demo:reset": "tsx server/demo/run.ts --reset",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "test": "vitest run",
