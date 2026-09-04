@@ -1,8 +1,5 @@
 {
+  "//": "Two independent programs share one vocabulary via type-only imports from server/domain: the browser app (tsconfig.app.json) and the Node server (tsconfig.server.json). `npm run typecheck` checks both; this file exists so editors pick up a project.",
   "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    }
-  ]
+  "include": []
 }

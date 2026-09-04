@@ -1,5 +1,5 @@
 export function ApertureModal({
-  title, help, value, setValue, primaryLabel, onPrimary, onClose,
+  title, help, value, setValue, primaryLabel, onPrimary, onClose, status,
 }: {
   title:string
   help:string
@@ -8,6 +8,8 @@ export function ApertureModal({
   primaryLabel:string
   onPrimary:()=>void
   onClose:()=>void
+  /** Validation feedback or a copy confirmation, shown next to the action. */
+  status?:string|null
 }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -23,6 +25,7 @@ export function ApertureModal({
         <textarea className="json-textarea" value={value} onChange={(e)=>setValue(e.target.value)} />
         <div className="button-row">
           <button className="button primary" onClick={onPrimary}>{primaryLabel}</button>
+          {status && <span className="modal-status">{status}</span>}
         </div>
       </div>
     </div>

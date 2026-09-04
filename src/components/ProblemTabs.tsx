@@ -1,9 +1,9 @@
-import type { ProblemSpace } from '../types/domain'
+import type { ProblemRecord } from '../lib/api'
 
 export function ProblemTabs({
   problems, activeId, onSelect,
 }: {
-  problems: ProblemSpace[]
+  problems: ProblemRecord[]
   activeId: string
   onSelect: (id: string) => void
 }) {

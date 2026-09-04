@@ -1,3 +1,8 @@
+/**
+ * Vocabulary used only by the pre-backend seed data in `src/data/problems.ts`,
+ * which `server/persistence/seed.ts` imports once to bootstrap the event log.
+ * The live vocabulary is `server/domain/types.ts`; the UI reads that one.
+ */
 export type NodeKind =
   | 'problem'
   | 'question'

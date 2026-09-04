@@ -31,7 +31,7 @@ Minimal example:
 ```json
 {
   "$type": "ai.bridgework.brainstorm.contributionPackage",
-  "schemaVersion": "0.1",
+  "schemaVersion": "0.2",
   "problemId": "campus-ai",
   "participantId": "person:achim",
   "contributions": [
@@ -46,6 +46,18 @@ Minimal example:
   "privateProcessDisclosed": false
 }
 ```
+
+## Server-side records
+
+As of v0.3 the shared-memory ontology lives in `server/domain/types.ts` and is
+the single vocabulary for the whole system — the frontend consumes it through
+type-only imports rather than declaring its own. The interchange packages above
+are a *projection* of it for external LLMs, not a second model.
+
+The canonical record types are `ProblemRecord`, `ContributionRecord` (carrying a
+`Provenance` envelope), `RelationRecord`, `ConflictRecord`, `CurationProposal`
+and `EvaluationRecord`, all derived from `MemoryEvent` by the projection in
+`server/domain/projections.ts`.
 
 ## Future formal records
 
