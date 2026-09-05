@@ -7,170 +7,318 @@ The visible product is simple:
 - one shared problem,
 - contributions from people,
 - orchestration prompts,
-- evaluation and provenance,
+- provenance and evaluation,
 - a canonical current-state view,
-- optional map and timeline views,
+- derived map and timeline views,
 - and an aperture to external LLMs.
 
-The deeper experiment is whether **independently controlled AI conversations can contribute bounded, interoperable objects to a shared problem memory**.
+The deeper experiment is whether **independently controlled AI conversations can
+contribute bounded, interoperable objects to a shared problem memory**.
 
-## Current architecture: v0.2 shared memory
+The rule the whole system is built around:
 
-The React prototype still provides the visual problem state. This branch adds a deliberately small real backend slice:
+> AI may interpret and propose. It may not silently rewrite collective memory.
+
+## v0.3 — Real Shared Room
+
+One problem now works end to end through a real backend, with several
+participants on two transports and one canonical memory.
 
 ```text
-React / external LLM
-        │
-   HTTP / MCP
-        │
-        ▼
-application service
-        │
-        ├─ deterministic append-only event log
-        ├─ attributed contributions
-        ├─ accepted relations
-        ├─ first-class conflicts
-        └─ curation proposal queue
-                     │
-          deterministic curator
-                     │
-             optional AI curator
+   React  ──────┐                     ┌────── MCP client (stdio)
+                │                     │
+                │                     ├────── MCP client (HTTP)
+                ▼                     ▼
+        HTTP adapter            MCP adapter
+                │                     │
+                └────────┬────────────┘
+                         ▼
+            application services          ← take an ActorContext, return domain values
+                         │                  and cannot tell which transport called
+                         ▼
+                 domain (pure)
+        events · projections · conflicts · policies
+                         │
+                         ▼
+              EventRepository (port)
+                         │
+                append-only event log
 ```
 
-The core rule is:
+What changed from v0.2:
 
-> AI may propose structure. It may not silently rewrite collective memory.
+- **React reads and writes canonical state through the backend.** There is no
+  local canonical state and no silent fallback to seed data.
+- **Events are the only writable truth.** Canonical state is a fold over the
+  log, so records and events can no longer drift apart.
+- **Identity is resolved server-side from a bearer token.** The
+  `x-brainstorm-actor` header — where the caller asserted its own identity — is
+  gone.
+- **MCP is rebuilt on the v2 SDK's server-factory model**, so one process serves
+  several participants and one registration backs stdio and HTTP alike.
+- **Conflicts are visible.** Accepted, unresolved conflicts render at the top of
+  the canonical view rather than in a drawer.
+- **The curation queue is reviewable in the UI**, with the curator named on
+  every proposal.
+- **Provenance is a qualified attribution**, not one author string: "AI
+  prepared" is never recorded as "human authored".
 
-## Run the React prototype
+## Run it
 
 ```bash
 npm install
-npm run dev
-```
-
-Build:
-
-```bash
-npm run build
-```
-
-## Run the minimal HTTP API
-
-```bash
 cp .env.example .env
+```
+
+Backend (REST API on `/api`, stateless MCP on `/mcp`):
+
+```bash
 npm run dev:server
 ```
 
-Endpoints:
-
-- `GET /health`
-- `GET /api/problems`
-- `GET /api/problems/:problemId`
-- `GET /api/problems/:problemId/updates`
-- `POST /api/problems/:problemId/contributions`
-- `POST /api/curation/:proposalId/review`
-
-For the prototype, HTTP identity is supplied with `x-brainstorm-actor`. This is intentionally **not production auth**. OAuth/OIDC should replace it before any real deployment.
-
-## Run the MCP server
+Frontend, in a second terminal (the Vite dev server proxies `/api` to the backend):
 
 ```bash
-BRAINSTORM_ACTOR_ID=person:achim npm run mcp
+npm run dev
 ```
 
-The stdio server exposes:
+Then pick a participant — Achim, Kai, Lea or Mara — and contribute.
 
-- `list_problems`
-- `get_problem_state`
-- `get_my_updates`
-- `propose_contribution`
-- `review_curation_proposal`
+Checks:
 
-MCP and HTTP both call the same application service. MCP never talks directly to the store.
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
-## Provenance and event history
+## HTTP API
 
-Every shared contribution is attributed and logged before curation runs.
+Every route except `/health` and the prototype login stub requires
+`Authorization: Bearer <token>`. An unknown or missing token answers `401` with
+a `WWW-Authenticate: Bearer` challenge.
 
-The event log currently records operations such as:
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/health` | liveness and curator status |
+| `GET` | `/api/participants` | prototype roster (dev only) |
+| `POST` | `/api/auth/session` | mint a session token (dev only) |
+| `GET` | `/api/problems` | list problems |
+| `GET` | `/api/problems/:id` | canonical state |
+| `GET` | `/api/problems/:id/updates?since=` | what changed, and what happened to my contributions |
+| `GET` | `/api/problems/:id/conflicts` | accepted conflicts |
+| `GET` | `/api/problems/:id/curation?status=` | curation queue |
+| `GET` | `/api/problems/:id/events` | full event history |
+| `GET` | `/api/problems/:id/mine` | my contributions |
+| `POST` | `/api/problems/:id/contributions` | contribute |
+| `POST` | `/api/curation/:proposalId/accept` | make a proposal canonical |
+| `POST` | `/api/curation/:proposalId/reject` | decline a proposal |
 
-- `ProblemCreated`
-- `ContributionAdded`
-- `RelationProposed`
-- `RelationAccepted`
-- `RelationRejected`
-- `ConflictProposed`
-- `ConflictAccepted`
-- `ConflictRejected`
+## MCP
 
-This gives us the deterministic answer to **who said what, when, and what happened to it**.
+Two transports, one registration site (`server/mcp/register-tools.ts`), one set
+of application services — the same objects the HTTP adapter calls. **No tool
+handler touches the store.**
 
-## Conflict is first-class
+stdio:
 
-The prototype distinguishes conflict from ordinary relationships. The data model already has room for:
+```bash
+BRAINSTORM_PARTICIPANT=Lea npm run mcp
+```
 
-- source conflict,
-- knowledge conflict,
-- decision conflict,
-- assumption conflict,
-- commitment conflict.
+Streamable HTTP: `POST http://localhost:8787/mcp` with a bearer token. Identity
+reaches the server factory as `ctx.authInfo`, so several participants share one
+process.
 
-The deterministic curator can suggest possible relations, duplicates, classifications, and conflicts. Suggestions enter the curation queue. They are not canonical until reviewed.
+Tools: `list_problems` · `get_problem_state` · `get_problem_updates` ·
+`get_my_contributions` · `get_conflicts` · `propose_contribution` ·
+`review_curation_proposal`.
 
-## Minimal AI curator
+Every tool declares an `inputSchema` and an `outputSchema`, returns `content`
+plus `structuredContent`, and reports operation failures as in-band
+`isError: true` results rather than throwing.
 
-The server works without AI.
+## Identity
 
-If both `OPENAI_API_KEY` and `OPENAI_MODEL` are set, a conservative curator call runs after a new contribution. It uses Structured Outputs to propose only:
+Adopted now, and permanent:
 
-- possible relations,
-- possible conflicts,
-- possible duplicates.
+- identity travels as a bearer token, never as a self-declared header or body field;
+- the server resolves it through a `TokenVerifier` shaped like the MCP SDK's
+  `OAuthTokenVerifier`;
+- application services receive an `ActorContext` and have no other way to learn
+  who is calling.
 
-The model is explicitly instructed not to declare truth or consensus. Its output remains a review proposal.
+Deliberately cheap, and removable: the *issuer*. `server/auth/prototype-auth.ts`
+mints opaque in-memory tokens for four participants with no password and no
+authorization server. Set `BRAINSTORM_PROTOTYPE_AUTH=off` to disable it.
 
-## Core views
+Swapping to real OIDC means implementing `TokenVerifier` against a JWKS endpoint
+and serving RFC 9728 metadata. Nothing in the domain, application, HTTP or MCP
+layers changes, because none of them ever sees a token.
 
-### State
-The canonical default. Questions, approaches, evidence, assumptions, tensions, and synthesis are explicit categories so people can understand the problem at a glance.
+## Provenance
 
-### Map
-An exploratory D3 relationship view. Position is **not canonical**.
+Who-said-what-when is first class. A contribution carries a qualified
+attribution — the distinction W3C PROV-O makes with `prov:qualifiedAttribution`,
+for the same reason:
 
-### Timeline
-A diachronic view of how the problem state evolved.
+| field | meaning |
+|---|---|
+| `authoredBy` | the person responsible for the content |
+| `preparedBy` | the model or agent that drafted it, when one did |
+| `submittedBy` | who pushed it into shared memory |
+| `reviewedBy` / `publishedBy` | later human acts on it |
+| `source` | `direct`, `ai_assisted`, `external_llm`, `mcp`, `seed` |
+| `endorsement` | `human_endorsed` or `participant_review_required` |
+
+Two collapses this prevents:
+
+- "AI prepared" must not become "human authored";
+- "Person said X" must not become "X is true".
+
+The seed importer honours this too: prototype authors like `"AI synthesis"` and
+`"Group"` become `seed:*` agents rather than being mapped onto a real person.
+
+## Event log
+
+`ProblemCreated` · `ContributionAdded` · `ContributionEdited` ·
+`RelationProposed` · `RelationAccepted` · `RelationRejected` ·
+`ConflictProposed` · `ConflictAccepted` · `ConflictRejected` ·
+`EvaluationAdded` · `ContributionSuperseded` · `VisibilityChanged`
+
+Each event carries `id`, `problemId`, `actorId`, `timestamp`, `objectId`,
+`eventType`, `payload`, and `causationId` / `correlationId` where they apply —
+so a proposal points back to the contribution that triggered it.
+
+The clock and the id source are injected, so a given sequence of commands
+produces a byte-identical event stream and tests can assert on it.
+
+Supersession sets a status and records a pointer. It never deletes a
+contribution and never removes an event.
+
+## Conflict is first class
+
+Conflict is part of knowledge, not an error state:
+
+`source_conflict` · `knowledge_conflict` · `decision_conflict` ·
+`assumption_conflict` · `commitment_conflict`
+
+A conflict exists **only** as the result of `ConflictAccepted`, and only a
+participant can cause one. Curators propose; a rejected proposal leaves a
+`ConflictRejected` event and no conflict.
+
+## Curation
+
+The deterministic curator runs first and handles the obvious cases with lexical
+work — duplicates, possible relations, classification, and contradiction cues.
+
+If `OPENAI_API_KEY` and `OPENAI_MODEL` are set, a conservative AI curator also
+runs. It receives at most 12 sibling contributions, never the store, and may
+only name objects it was handed. Any failure is logged to stderr and skipped;
+the contribution is already durable before curation runs.
+
+Neither curator can write canonical memory, and this is structural rather than
+promised: curator modules do not import the event constructor. Their return type
+is a list of proposals, and only `curation-service.review()` — which requires a
+human `ActorContext` — can emit `RelationAccepted` or `ConflictAccepted`.
+
+Allowed: classify · propose duplicate · propose relation · propose conflict ·
+explain briefly.
+
+Not built: autonomous synthesis, automatic consensus, automatic deletion,
+automatic supersession, silent merges, automatic visibility changes.
+
+## Views
+
+**State** is canonical: questions, approaches, evidence, assumptions, tensions,
+claims, synthesis — with unresolved conflicts above them and superseded
+contributions kept below, visibly retired rather than gone.
+
+**Map** is an exploratory D3 projection. Position is not canonical. Node size is
+degree; dashed red edges are accepted, unresolved conflicts.
+
+**Timeline** is the event log read as a story, with the actor and event type on
+every entry.
+
+**Curation** is the review queue.
 
 ## Clipboard aperture
 
-The manual clipboard flow remains useful as a universal fallback:
+Still the universal fallback, now over real state: export the canonical context
+package into any LLM, think privately, return only a `contributionPackage`.
+Imported contributions are written through the backend like any other, marked
+`external_llm` and `participant_review_required`, and attributed to the session's
+participant — never to the `participantId` written in the package.
 
-`Think with my AI` exports an interchange package. Think privately in any LLM and return only the specified contribution package.
+## Layout
 
-MCP now provides a second transport for the same underlying idea. The semantic contract should remain independent of transport.
+```text
+src/                 frontend only
+  lib/api.ts         backend client
+  state/useRoom.ts   session, canonical reads, mutations, refresh
+  components/        State · Map · Timeline · Curation · SideRail
+
+server/
+  domain/            types · events · conflicts · projections · policies
+  application/       problem · contribution · curation services
+  persistence/       repository port · JSON adapter · seed
+  curation/          deterministic · ai-curator
+  auth/              actor-context (port) · prototype-auth (adapter)
+  mcp/               create-server · register-tools · stdio · http
+  http/              api · server
+  container.ts       composition root — the only place that reads env
+  test/              domain · api · mcp · persistence · integration
+```
+
+## Tests
+
+`npm test` — 54 tests across five files.
+
+The decisive one is `server/test/integration.test.ts`: Kai contributes over
+HTTP, the curator proposes a conflict, Achim accepts it, the conflict becomes
+visible on the React read path, Lea connects over MCP and sees the same
+canonical state, Lea contributes through MCP, React sees it, and the history
+carries the whole provenance chain — all against **one** service instance driven
+through both transports at once.
+
+`server/test/persistence.test.ts` covers the concurrency fix: v0.2's
+read-modify-write store kept **1 of 50** concurrent appends (measured, not
+assumed); the current store keeps all 50.
 
 ## What is intentionally still missing
 
-- production OAuth/OIDC,
-- Postgres,
-- real multi-user synchronization in React,
-- private cognitive bubbles,
-- aperture permissions,
-- ATProto storage/federation,
-- graph database,
-- Kafka,
-- autonomous agents,
-- automatic consensus.
+Postgres · real OIDC · live push (React refreshes after mutation and on demand) ·
+ATProto · private cognitive bubbles · aperture permissions · autonomous agents ·
+consensus scoring · Kafka · Neo4j · Redis · a graph database.
 
-The local JSON store is intentionally disposable. Its job is to prove the event/provenance/curation model before introducing infrastructure.
+The JSON store stays disposable on purpose. Its job is to prove the
+event/provenance/curation model before infrastructure arrives. The triggers for
+moving to Postgres are recorded in ADR-003 §4, so it stays a decision rather
+than a drift.
+
+`EvaluationAdded` and `VisibilityChanged` are modelled and projected but no UI
+drives them yet — they exist so the log shape does not change when the UI
+arrives.
+
+## Documents
+
+- [docs/CONCEPT.md](docs/CONCEPT.md) — the product and research idea
+- [docs/SCHEMAS.md](docs/SCHEMAS.md) — interchange schemas
+- [docs/history/MILESTONES.md](docs/history/MILESTONES.md) — how the understanding evolved
+- [docs/architecture/V0_3_RESEARCH.md](docs/architecture/V0_3_RESEARCH.md) — what was sound, what had to go, and why
+- [docs/architecture/REFERENCE_IMPLEMENTATIONS.md](docs/architecture/REFERENCE_IMPLEMENTATIONS.md) — per-repo evaluation, licences, what not to copy
+- [docs/architecture/ADR-003-v0.3-shared-room.md](docs/architecture/ADR-003-v0.3-shared-room.md) — the decision
 
 ## Next validation
 
-Use three humans with three different MCP-capable LLM environments against one shared problem. Test whether:
+Three humans, three different MCP-capable LLM environments, one shared problem.
+Test whether:
 
 1. the same shared state is understood consistently,
 2. contributions remain attributable,
 3. conflicts become more visible rather than flattened,
-4. curator proposals are useful enough to review,
-5. external LLM participation feels materially better than clipboard JSON alone.
+4. curator proposals are worth reviewing,
+5. external LLM participation is materially better than clipboard JSON alone.
 
-Only after that should the stable contribution/relationship/evaluation schemas be considered for formal ATProto Lexicons.
+Only after that should the contribution/relation/evaluation schemas be
+considered for formal ATProto Lexicons.

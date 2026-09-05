@@ -50,12 +50,22 @@ This prevents the force-directed map from becoming the system’s ontology.
 
 ## What is intentionally faked
 
-- identity,
-- permissions,
-- persistence,
-- real AI calls,
-- distributed repositories,
-- ATProto,
-- background orchestration.
+As of v0.3 this list is shorter than it was, and the remaining entries are
+narrower. See [ADR-003](./architecture/ADR-003-v0.3-shared-room.md) for the
+boundaries.
 
-The clipboard JSON round-trip simulates interoperability with external cognitive environments.
+- **the session issuer, and only the issuer** — identity is genuinely resolved
+  server-side from a bearer token; what is fake is how a principal is
+  established, in one removable file;
+- **permissions beyond authorship** — a participant may edit only their own
+  contributions, but there is no sharing or visibility model yet;
+- **persistence technology** — a local append-only JSON log, disposable by
+  design, behind a repository port;
+- **distributed repositories and ATProto**;
+- **background orchestration** — no live push; the client refreshes.
+
+No longer faked: attribution, event history, conflict objects, the curation
+queue, the review boundary, and the MCP transport.
+
+The clipboard JSON round-trip remains as the universal fallback for external
+cognitive environments; MCP is now the direct path for the same contract.
