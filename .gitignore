@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .DS_Store
+.wrangler/
 
 # Local event log — disposable prototype persistence.
 server/data/

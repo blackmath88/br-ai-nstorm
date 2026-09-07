@@ -19,7 +19,7 @@ import { problems as seedProblems } from '../../src/data/problems.js'
 import { deriveLabel, makeEvent, type Clock, type IdSource, type MemoryEvent } from '../domain/events.js'
 import type { ContributionKind, Provenance, RelationKind } from '../domain/types.js'
 import { CONTRIBUTION_KINDS, RELATION_KINDS } from '../domain/types.js'
-import { PARTICIPANTS } from '../auth/prototype-auth.js'
+import { PARTICIPANTS } from '../auth/participants.js'
 import type { EventRepository } from './repository.js'
 
 export const SEED_ACTOR = 'seed:import'
