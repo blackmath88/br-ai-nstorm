@@ -16,24 +16,18 @@
  * caller *was* the identity provider. This has exactly one removable file.
  */
 import { randomBytes } from 'node:crypto'
-import type { Participant } from '../domain/types.js'
 import { unauthorized } from '../domain/errors.js'
 import { DEFAULT_SCOPES, type ActorContext, type TokenVerifier } from './actor-context.js'
+import { PARTICIPANTS } from './participants.js'
 
-/** The prototype roster. Four participants so multi-party behaviour is testable. */
-export const PARTICIPANTS: Participant[] = [
-  { id: 'person:achim', name: 'Achim' },
-  { id: 'person:kai', name: 'Kai' },
-  { id: 'person:lea', name: 'Lea' },
-  { id: 'person:mara', name: 'Mara' },
-]
+export { PARTICIPANTS } from './participants.js'
 
 export interface PrototypeAuth extends TokenVerifier {
   /** Mints a session token for a known participant. Dev-only. */
   issue(participantId: string): { token: string; actor: ActorContext }
   /** Stable token per participant, for tests and for `BRAINSTORM_TOKEN`. */
   issueStable(participantId: string): string
-  participants(): Participant[]
+  participants(): typeof PARTICIPANTS
   revoke(token: string): void
 }
 
@@ -41,19 +35,19 @@ export function createPrototypeAuth(options: { deterministicTokens?: boolean } =
   const tokens = new Map<string, ActorContext>()
   const stable = new Map<string, string>()
 
-  const toActor = (participant: Participant): ActorContext => ({
+  const toActor = (participant: (typeof PARTICIPANTS)[number]): ActorContext => ({
     actorId: participant.id,
     displayName: participant.name,
     scopes: [...DEFAULT_SCOPES],
   })
 
-  const find = (participantId: string): Participant => {
+  const find = (participantId: string) => {
     const participant = PARTICIPANTS.find((p) => p.id === participantId || p.name.toLowerCase() === participantId.toLowerCase())
     if (!participant) throw unauthorized(`Unknown participant "${participantId}".`)
     return participant
   }
 
-  const mint = (participant: Participant): string =>
+  const mint = (participant: (typeof PARTICIPANTS)[number]): string =>
     options.deterministicTokens
       ? `dev-${participant.id.replace('person:', '')}`
       : randomBytes(24).toString('base64url')
