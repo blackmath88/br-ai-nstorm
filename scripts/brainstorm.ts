@@ -18,7 +18,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join, relative, resolve } from 'node:path'
 import { createIdSource, type Clock } from '../server/domain/events.js'
 import { project } from '../server/domain/projections.js'
-import { MANIFEST_FILE, MANIFEST_VERSION, manifestFiles, parseManifest, type AdoptionManifest } from '../server/adoption/manifest.js'
+import {
+  MANIFEST_FILE, MANIFEST_VERSION, manifestFiles, parseManifest, repositoryFromRemote, type AdoptionManifest,
+} from '../server/adoption/manifest.js'
 import { planImport, type ImportPlan } from '../server/adoption/plan.js'
 import { renderStaticView } from '../server/adoption/static-view.js'
 import { extractUnits } from '../server/adoption/markdown.js'
@@ -46,7 +48,7 @@ function gitRevision(dir: string): string | undefined {
 function gitRepository(dir: string): string | undefined {
   try {
     const url = execFileSync('git', ['-C', dir, 'remote', 'get-url', 'origin'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-    return /github\.com[/:]([^/]+\/[^/.]+)/.exec(url)?.[1]
+    return repositoryFromRemote(url)
   } catch {
     return undefined
   }

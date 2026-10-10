@@ -14,7 +14,7 @@ import type { MemoryEvent } from '../domain/events.js'
 import { projectProblems } from '../domain/projections.js'
 import { openConflicts } from '../domain/conflicts.js'
 import type { ActorContext } from '../auth/actor-context.js'
-import { loadState, loadStateAndEvents, byTimeThenId, type ServiceDeps } from './support.js'
+import { loadState, loadStateAndEvents, byTimeThenId, withDefaultOrchestration, type ServiceDeps } from './support.js'
 
 export interface UpdateItem {
   eventId: string
@@ -167,7 +167,7 @@ function describe(event: MemoryEvent, state: ProblemState): { title: string; det
 export function createProblemService(deps: ServiceDeps): ProblemService {
   return {
     async list() {
-      return projectProblems(await deps.repository.read())
+      return projectProblems(await deps.repository.read()).map((problem) => withDefaultOrchestration(deps, problem))
     },
 
     async getState(problemId) {

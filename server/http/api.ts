@@ -36,8 +36,12 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
   res.end(JSON.stringify(body, null, 2))
 }
 
-/** Comfortably above the largest legitimate body (a 64-file import bundle). */
-const MAX_BODY_BYTES = 20 * 1024 * 1024
+/**
+ * Above the largest legitimate body: an import bundle is capped at 2 Mi
+ * characters of source (`MAX_IMPORT_TOTAL_CHARS`), which is at most ~12 MiB
+ * once UTF-8 encoded and JSON-escaped, even for non-Latin text.
+ */
+const MAX_BODY_BYTES = 16 * 1024 * 1024
 
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []

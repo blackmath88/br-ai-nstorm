@@ -190,15 +190,10 @@ export function extractUnits(markdown: string): ExtractResult {
     if (block.shape === 'list') {
       const items = block.items!.map((item) => ({ ...item, text: plainText(item.text).replace(/[;,]\s*$/, '') }))
       const prev = blocks[index - 1]
-      const leadIn =
-        prev && prev.shape === 'paragraph' && sameSection(prev, block) && /:\s*$/.test(prev.lines.join(' '))
-          ? prev
-          : undefined
-      // Questions are never folded together: each one is something to answer.
-      const enumeration =
-        items.length > 1 &&
-        items.every((item) => words(item.text) <= SHORT_ITEM_WORDS) &&
-        !items.some((item) => /\?\s*$/.test(item.text))
+      // Same predicate the paragraph pass uses, so a lead-in is either folded
+      // here or emitted there — never both.
+      const leadIn = prev && sameSection(prev, block) && isLeadIn(prev) ? prev : undefined
+      const enumeration = isEnumeration(items.map((item) => item.text))
 
       if (enumeration) {
         // "Potential actors: Basel-Stadt; MeteoSwiss; …" is one statement, not nine.
@@ -223,11 +218,9 @@ export function extractUnits(markdown: string): ExtractResult {
     const text = plainText(block.lines.join(' '))
     const next = blocks[index + 1]
     const prev = blocks[index - 1]
-    const isLeadIn = (b: Block | undefined, t: string) =>
-      b?.shape === 'paragraph' && /:\s*$/.test(t) && t.length < 200
 
     // A quote introduced by "Working principle:" reads as one statement.
-    if (block.shape === 'quote' && prev && sameSection(prev, block) && isLeadIn(prev, plainText(prev.lines.join(' ')))) {
+    if (block.shape === 'quote' && prev && sameSection(prev, block) && isLeadIn(prev)) {
       push({
         text: `${plainText(prev.lines.join(' '))} ${text}`,
         startLine: prev.start,
@@ -238,17 +231,13 @@ export function extractUnits(markdown: string): ExtractResult {
       return
     }
 
-    if (isLeadIn(block, text) && next && sameSection(block, next)) {
-      // Carried by the quote or list it introduces (see above and below)...
+    if (isLeadIn(block) && next && sameSection(block, next)) {
+      // Carried by the quote or enumeration it introduces (see above)...
       if (next.shape === 'quote') return
-      if (next.shape === 'list') {
-        const items = next.items!.map((item) => plainText(item.text))
-        const enumeration =
-          items.length > 1 && items.every((item) => words(item) <= SHORT_ITEM_WORDS) && !items.some((item) => /\?\s*$/.test(item))
-        if (enumeration || text.length < 80) return
-      }
-      // ...or orphaned, when what it introduces was code or a table.
-      if (next.shape === 'code' || next.shape === 'table') {
+      if (next.shape === 'list' && isEnumeration(next.items!.map((item) => plainText(item.text)))) return
+      // ...or too slight to stand alone ("Potentially:") before separate
+      // items or skipped code. Dropped, but counted, never silently lost.
+      if (next.shape === 'code' || next.shape === 'table' || (next.shape === 'list' && text.length < 80)) {
         skipped.leadIn += 1
         return
       }
@@ -259,6 +248,17 @@ export function extractUnits(markdown: string): ExtractResult {
 
   return { ...(title ? { title } : {}), units, skipped }
 }
+
+/** A paragraph that only introduces what follows ("Potential actors:"). */
+const isLeadIn = (block: Block): boolean => {
+  if (block.shape !== 'paragraph') return false
+  const text = plainText(block.lines.join(' '))
+  return /:\s*$/.test(text) && text.length < 200
+}
+
+/** Short items read as one statement. Questions are never folded together: each one is something to answer. */
+const isEnumeration = (items: string[]): boolean =>
+  items.length > 1 && items.every((item) => words(item) <= SHORT_ITEM_WORDS) && !items.some((item) => /\?\s*$/.test(item))
 
 const sameSection = (a: Pick<Block, 'headings'>, b: Pick<Block, 'headings'>) => a.headings.join('\u0000') === b.headings.join('\u0000')
 

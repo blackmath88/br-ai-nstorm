@@ -43,6 +43,9 @@ const empty = (): Accumulator => ({
 function evolve(acc: Accumulator, event: MemoryEvent): Accumulator {
   switch (event.eventType) {
     case 'ProblemCreated': {
+      // First one wins. A duplicate (e.g. two overlapping imports that both saw
+      // an empty log) must not reset what happened since.
+      if (acc.problem) return acc
       const p = asPayload<ProblemCreatedPayload>(event)
       acc.problem = {
         id: event.problemId,
@@ -74,6 +77,10 @@ function evolve(acc: Accumulator, event: MemoryEvent): Accumulator {
     }
 
     case 'ContributionAdded': {
+      // Ids are unique by construction, except for content-addressed imports
+      // appended twice by overlapping runs. Replaying the second must not
+      // revive a superseded record or discard its edits.
+      if (acc.contributions.has(event.objectId)) return acc
       const p = asPayload<ContributionAddedPayload>(event)
       acc.contributions.set(event.objectId, {
         id: event.objectId,

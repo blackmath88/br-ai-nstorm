@@ -14,7 +14,9 @@ import { manifestFiles, parseManifest } from '../adoption/manifest.js'
 import { planImport, type ImportPlan } from '../adoption/plan.js'
 import type { ServiceDeps } from './support.js'
 
-export const MAX_IMPORT_FILE_BYTES = 256 * 1024
+/** Characters, not bytes: what a JS string length measures. */
+export const MAX_IMPORT_FILE_CHARS = 256 * 1024
+export const MAX_IMPORT_TOTAL_CHARS = 2 * 1024 * 1024
 export const MAX_IMPORT_FILES = 64
 
 export interface ImportService {
@@ -36,12 +38,17 @@ function readBundle(raw: unknown) {
   const wanted = manifestFiles(manifest)
   if (wanted.length > MAX_IMPORT_FILES) throw invalid(`A manifest may name at most ${MAX_IMPORT_FILES} files.`)
   const files: Record<string, string> = {}
+  let total = 0
   for (const path of wanted) {
     const content = (filesRaw as Record<string, unknown>)[path]
     if (content === undefined) continue
     if (typeof content !== 'string') throw invalid(`files["${path}"] must be a string.`)
-    if (content.length > MAX_IMPORT_FILE_BYTES) {
-      throw invalid(`files["${path}"] exceeds ${MAX_IMPORT_FILE_BYTES} characters.`)
+    if (content.length > MAX_IMPORT_FILE_CHARS) {
+      throw invalid(`files["${path}"] exceeds ${MAX_IMPORT_FILE_CHARS} characters.`)
+    }
+    total += content.length
+    if (total > MAX_IMPORT_TOTAL_CHARS) {
+      throw invalid(`An import may carry at most ${MAX_IMPORT_TOTAL_CHARS} characters of source in total.`)
     }
     files[path] = content
   }

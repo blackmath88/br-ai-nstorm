@@ -80,6 +80,11 @@ export function stableHash(input: string): string {
   return fnv(0x811c9dc5) + fnv(0x01000193 ^ 0x5bd1e995)
 }
 
+/** Recovers the repository path from an imported unit's `sourceDetail` (`repo@rev:path#L5-L7 · …`). */
+export function importedPath(sourceDetail: string | undefined): string | undefined {
+  return /^[^:]*:(.+?)#L\d+/.exec(sourceDetail ?? '')?.[1]
+}
+
 export const unitId = (problemId: string, path: string, text: string) =>
   `${problemId}:src:${stableHash(`${problemId}\u0000${path}\u0000${text}`)}`
 
@@ -218,14 +223,19 @@ export function planImport(input: {
       )
     }
 
+    // Stale means "no longer in a file we read" — never "in a file we did not
+    // receive". A missing or renamed file is reported as missing, and what was
+    // imported from it is left alone.
     const current = new Set(planned.map((p) => p.id))
+    const readPaths = new Set(space.sources.filter((path) => files[path] !== undefined))
     const stale = (priorState?.contributions ?? [])
       .filter(
         (c) =>
           c.provenance.source === 'repo_import' &&
           c.status === 'active' &&
           c.id.startsWith(`${space.id}:src:`) &&
-          !current.has(c.id),
+          !current.has(c.id) &&
+          readPaths.has(importedPath(c.provenance.sourceDetail) ?? ''),
       )
       .map((c) => ({
         id: c.id,

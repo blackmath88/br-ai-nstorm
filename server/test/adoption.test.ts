@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createIdSource, type Clock } from '../domain/events.js'
 import { project } from '../domain/projections.js'
-import { parseManifest, sourceUrl, type AdoptionManifest } from '../adoption/manifest.js'
+import { parseManifest, repositoryFromRemote, sourceUrl, type AdoptionManifest } from '../adoption/manifest.js'
 import { extractUnits, kindFor } from '../adoption/markdown.js'
 import { planImport, stableHash, unitId } from '../adoption/plan.js'
 import { renderStaticView } from '../adoption/static-view.js'
@@ -320,5 +320,74 @@ describe('import into a shared room', () => {
       body: { ...body, manifest: { version: 1, problemSpaces: [{ id: 'x', sources: ['../../etc/passwd.md'] }] } },
     })
     expect(bad.status).toBe(422)
+  })
+})
+
+describe('review fixes', () => {
+  it('does not report items from a missing file as stale', () => {
+    const first = planImport({ bundle: { manifest, files }, existing: [], deps: deps(), importedBy: 'person:achim' })
+    const without = planImport({
+      bundle: { manifest, files: { 'challenges/basel-38/BRIEF.md': BRIEF } },
+      existing: first.events,
+      deps: deps(),
+      importedBy: 'person:achim',
+    })
+    expect(without.report.spaces[0].missingFiles).toEqual(['challenges/basel-38/BRAINSTORM.md'])
+    expect(without.report.spaces[0].stale).toEqual([])
+  })
+
+  it('replays a duplicated import idempotently — the first ProblemCreated and ContributionAdded win', () => {
+    const first = planImport({ bundle: { manifest, files }, existing: [], deps: deps(), importedBy: 'person:achim' })
+    // Two overlapping pushes that both saw an empty log append the same ids twice.
+    const racing = planImport({ bundle: { manifest, files }, existing: [], deps: deps(fixedClock('2026-09-02T00:00:00.000Z')), importedBy: 'person:kai' })
+    const target = first.events.find((e) => e.eventType === 'ContributionAdded')!.objectId
+    const between = [
+      { ...first.events[0], id: 'evt_x1', eventType: 'OrchestrationModeChanged' as const, actorId: 'person:lea', payload: { from: 'participant', to: 'deterministic' } },
+      { ...first.events[0], id: 'evt_x2', eventType: 'ContributionSuperseded' as const, objectId: target, actorId: 'person:lea', payload: { supersededBy: target } },
+    ]
+    const state = project([...first.events, ...between, ...racing.events])!
+    expect(state.problem.createdBy).toBe('person:achim')
+    expect(state.problem.orchestration.mode).toBe('deterministic')
+    expect(state.contributions.find((c) => c.id === target)?.status).toBe('superseded')
+    expect(state.contributions).toHaveLength(project(first.events)!.contributions.length)
+  })
+
+  it('counts a short lead-in before separate long items instead of losing it', () => {
+    const doc = `## Risks\n\nThe key risks we must address are:\n\n- Care teams may not have capacity to change routes on short notice.\n- Cool rooms may close earlier than their published opening hours.\n`
+    const result = extractUnits(doc)
+    expect(result.units).toHaveLength(2)
+    expect(result.skipped.leadIn).toBe(1)
+  })
+
+  it('never imports a long lead-in twice', () => {
+    const lead = `${'This paragraph is long enough to stand on its own as a statement about the problem. '.repeat(3)}Actors:`
+    const doc = `## Actors\n\n${lead}\n\n- Basel-Stadt\n- MeteoSwiss\n`
+    const texts = extractUnits(doc).units.map((u) => u.text)
+    expect(texts.filter((t) => t.includes('long enough'))).toHaveLength(1)
+  })
+
+  it('reads owner/name from remotes, including names with dots', () => {
+    expect(repositoryFromRemote('https://github.com/acme/hack.am.rhein.git')).toBe('acme/hack.am.rhein')
+    expect(repositoryFromRemote('git@github.com:acme/hack.am.rhein.git')).toBe('acme/hack.am.rhein')
+    expect(repositoryFromRemote('https://github.com/acme/tool')).toBe('acme/tool')
+    expect(repositoryFromRemote('https://gitlab.com/acme/tool.git')).toBeUndefined()
+  })
+
+  it('caps total characters per import', async () => {
+    const harness = await createHarness()
+    try {
+      const big = 'x'.repeat(250 * 1024)
+      const many = parseManifest({
+        version: 1,
+        problemSpaces: [{ id: 'big', sources: Array.from({ length: 10 }, (_, i) => `f${i}.md`) }],
+      })
+      const res = await harness.http('POST', '/api/imports/preview', {
+        token: harness.token('Achim'),
+        body: { manifest: many, files: Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`f${i}.md`, big])) },
+      })
+      expect(res.status).toBe(422)
+    } finally {
+      await harness.close()
+    }
   })
 })

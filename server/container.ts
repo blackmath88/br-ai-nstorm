@@ -18,6 +18,8 @@ import { createOrchestrationService, type OrchestrationService } from './applica
 import { createImportService, type ImportService } from './application/import-service.js'
 import { createPrototypeAuth, type PrototypeAuth } from './auth/prototype-auth.js'
 import type { ServiceDeps } from './application/support.js'
+import type { OrchestrationMode } from './domain/types.js'
+import { ORCHESTRATION_MODES } from './domain/types.js'
 
 export interface Services {
   problems: ProblemService
@@ -38,6 +40,8 @@ export interface BuildOptions {
   auth?: PrototypeAuth
   /** Skip importing the prototype problem data. Tests that build their own history set this. */
   seed?: boolean
+  /** Mode for problems nobody has switched yet; see `ServiceDeps.defaultOrchestration`. */
+  defaultOrchestration?: OrchestrationMode
 }
 
 /**
@@ -59,7 +63,8 @@ export async function buildServices(options: BuildOptions = {}): Promise<Service
     await ensureSeedData({ repository, clock, ids })
   }
 
-  const deps: ServiceDeps = { repository, clock, ids, curator }
+  const defaultOrchestration = options.defaultOrchestration ?? defaultOrchestrationFromEnv(curator)
+  const deps: ServiceDeps = { repository, clock, ids, curator, ...(defaultOrchestration ? { defaultOrchestration } : {}) }
 
   return {
     problems: createProblemService(deps),
@@ -71,6 +76,27 @@ export async function buildServices(options: BuildOptions = {}): Promise<Service
     curator,
     repository,
   }
+}
+
+/**
+ * `BRAINSTORM_DEFAULT_ORCHESTRATION=api` keeps the pre-v0.4 behaviour (server
+ * curator on every contribution) for problems nobody has switched. Refused,
+ * loudly, when there is no curator to run — a default that silently does
+ * nothing would misreport where proposals come from.
+ */
+function defaultOrchestrationFromEnv(curator: Curator): OrchestrationMode | undefined {
+  const value = process.env.BRAINSTORM_DEFAULT_ORCHESTRATION?.trim()
+  if (!value) return undefined
+  if (!(ORCHESTRATION_MODES as string[]).includes(value)) {
+    console.error(`[br-ai-nstorm] ignoring BRAINSTORM_DEFAULT_ORCHESTRATION="${value}"; expected one of ${ORCHESTRATION_MODES.join(', ')}.`)
+    return undefined
+  }
+  if (value === 'api' && !curator.enabled) {
+    console.error('[br-ai-nstorm] ignoring BRAINSTORM_DEFAULT_ORCHESTRATION=api: no curator key is configured.')
+    return undefined
+  }
+  console.error(`[br-ai-nstorm] default orchestration for unswitched problems: ${value}`)
+  return value as OrchestrationMode
 }
 
 function defaultCurator(): Curator {

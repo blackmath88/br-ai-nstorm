@@ -34,10 +34,14 @@ orchestration mode, switched by a participant and recorded as
 | `api` | the server's AI curator | the operator (only selectable when a key is configured) |
 | `deterministic` | lexical matching only; AI proposals are dropped with a reason | nobody |
 
-The deterministic curator runs in every mode. A participant's LLM attaches
+The deterministic curator runs in every mode, and one cap (8) bounds all
+proposals a single contribution can create. A participant's LLM attaches
 proposals to its contribution; each is recorded as made by `agent:<model>` *on
 behalf of* that participant (`prov:actedOnBehalfOf`) — and **only another
 participant may review it**. There is no silent fallback to the paid curator.
+Deployments that relied on the server curator before v0.4 set
+`BRAINSTORM_DEFAULT_ORCHESTRATION=api` to keep it for problems nobody has
+switched.
 
 **Cheap reads for LLM clients.** `get_problem_overview` (ids, kinds, labels,
 provenance — no bodies), `get_contributions` (≤ 20 full texts by id) and
@@ -339,7 +343,7 @@ scripts/brainstorm.ts  adoption CLI: init · build · preview · push
 
 ## Tests
 
-`npm test` — 104 tests across eight files. `npm run typecheck` covers the
+`npm test` — 115 tests across eight files. `npm run typecheck` covers the
 frontend, the server and the Worker.
 
 The decisive one is `server/test/integration.test.ts`: Kai contributes over

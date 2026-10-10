@@ -71,6 +71,16 @@ The demo has no curator key, so `api` orchestration is listed but unavailable;
 problems run in `participant` mode (the connecting client's model curates) or
 `deterministic` mode.
 
+## Storage layout
+
+One key per event (`e:<12-digit sequence>`) plus a `seq` counter, written in
+one storage transaction per append. The first version stored the whole log as a
+single `events` value, which hits the per-value size limit after a few thousand
+events, or after one large repository import. The old value is migrated on first
+access. Verified under `wrangler dev` against local state that the old version
+wrote. `list()` reads the whole log, which is fine at demo scale. Above that,
+the ADR-003 Postgres triggers apply here as well.
+
 ## Runtime note: Durable Object stubs are per request
 
 `worker/durable-repository.ts` resolves the Durable Object stub on every

@@ -15,7 +15,7 @@ import type {
 import { CONTRIBUTION_KINDS } from '../domain/types.js'
 import { invalid, notFound } from '../domain/errors.js'
 import {
-  assertContributionContent, assertMayEdit, assertMaySupersede, assertHumanActor,
+  assertContributionContent, assertMayEdit, assertMaySupersede, assertHumanActor, PROPOSALS_PER_CONTRIBUTION_LIMIT,
 } from '../domain/policies.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { proposeDeterministically, inferKind, type ProposalDraft } from '../curation/deterministic.js'
@@ -159,7 +159,15 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         onBehalfOf: actor.actorId,
       })
 
-      const drafts = dedupe([...screened.drafts, ...deterministic, ...ai], state.proposals)
+      // Participant judgement first (it is the mode's curation), then the
+      // server curator, then lexical matching — and one cap over all of them,
+      // so a contribution never asks more of a reviewer than the limit.
+      // Participant drafts are themselves capped at the same limit, so the
+      // cap only ever trims curator output.
+      const drafts = dedupe([...screened.drafts, ...ai, ...deterministic], state.proposals).slice(
+        0,
+        PROPOSALS_PER_CONTRIBUTION_LIMIT,
+      )
       const proposalEvents: MemoryEvent[] = []
       const proposals: import('../domain/types.js').CurationProposal[] = []
 
@@ -190,7 +198,7 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
           mode,
           deterministic: deterministic.length,
           ai: ai.length,
-          participant: screened.drafts.length,
+          participant: screened.drafts.filter((draft) => drafts.includes(draft)).length,
           aiEnabled: deps.curator.enabled,
         },
         dropped: screened.dropped,

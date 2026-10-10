@@ -160,3 +160,42 @@ describe('Worker import route', () => {
     ])
   })
 })
+
+describe('Durable Object event log', () => {
+  const event = (i: number, problemId = 'p'): MemoryEvent =>
+    ({ id: `evt_${i}`, problemId, actorId: 'person:kai', timestamp: '', objectId: `o${i}`, eventType: 'ContributionAdded', payload: {} }) as MemoryEvent
+
+  async function log() {
+    const { EventLog } = await import('../../worker/durable-event-log.js')
+    const { MemoryStorage } = await import('./support/cloudflare-workers.js')
+    const storage = new MemoryStorage()
+    return { storage, log: new EventLog({ storage } as never, {} as never) }
+  }
+
+  it('stores one key per event, in append order, across batches larger than one put()', async () => {
+    const { storage, log: eventLog } = await log()
+    await eventLog.append(Array.from({ length: 300 }, (_, i) => event(i)))
+    await eventLog.append([event(300, 'q')])
+    const all = await eventLog.read()
+    expect(all.map((e) => e.id)).toEqual(Array.from({ length: 301 }, (_, i) => `evt_${i}`))
+    expect((await eventLog.read('q')).map((e) => e.id)).toEqual(['evt_300'])
+    // No single value holds the log.
+    expect(storage.data.has('events')).toBe(false)
+    expect(storage.puts).toBeGreaterThanOrEqual(3)
+  })
+
+  it('migrates the legacy single-value log on first touch, keeping order', async () => {
+    const { storage, log: eventLog } = await log()
+    storage.data.set('events', [event(1), event(2)])
+    await eventLog.append([event(3)])
+    expect((await eventLog.read()).map((e) => e.id)).toEqual(['evt_1', 'evt_2', 'evt_3'])
+    expect(storage.data.has('events')).toBe(false)
+  })
+
+  it('appendIfEmpty installs once and only into an empty log', async () => {
+    const { log: eventLog } = await log()
+    expect(await eventLog.appendIfEmpty([event(1)])).toBe(true)
+    expect(await eventLog.appendIfEmpty([event(2)])).toBe(false)
+    expect((await eventLog.read()).map((e) => e.id)).toEqual(['evt_1'])
+  })
+})

@@ -160,3 +160,11 @@ export function sourceUrl(
   const anchor = lines ? (lines.start === lines.end ? `#L${lines.start}` : `#L${lines.start}-L${lines.end}`) : ''
   return `${base.replace(/\/$/, '')}/${path}${anchor}`
 }
+
+/**
+ * `owner/name` from a git remote URL, for GitHub remotes. Names may contain
+ * dots ("hack.am.rhein"); only a trailing `.git` is dropped.
+ */
+export function repositoryFromRemote(url: string): string | undefined {
+  return /github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(url.trim())?.[1]
+}

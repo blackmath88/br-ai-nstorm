@@ -69,7 +69,8 @@ Extraction is deterministic: the same file always gives the same units, in the
 same order. Each unit is a paragraph, a quote or a list item, anchored to its
 exact line range. A short lead-in ("Potential actors:") is folded into the list
 or quote it introduces. A short enumeration becomes one unit, unless its items
-are questions. Code blocks and tables are skipped and counted. A unit's kind
+are questions. Code blocks, tables, and lead-ins too slight to stand alone
+("Potentially:") are skipped and counted, never silently lost. A unit's kind
 comes from the **author's own section heading** ("Open questions" → question,
 "Risks / assumptions" → assumption, "Ideas" → approach, …). A trailing `?`
 always means question. Nothing is summarised or rewritten, and no model is
@@ -93,14 +94,18 @@ repository and the room from becoming two competing versions of the same fact:
    is a no-op too.
 2. **Add-only.** Changed text arrives as a new contribution. The old one is
    reported as **stale** and left alone: not edited, not superseded, not
-   removed. Supersession is a human act.
+   removed. Supersession is a human act. A file missing from an import is
+   reported as missing, and what came from it is *not* marked stale.
+   Overlapping imports are harmless: replay keeps the first `ProblemCreated`
+   and the first `ContributionAdded` for an id.
 3. **Imported text cannot be edited in the room.** Its author is the
    repository, so no participant passes the author-only edit rule. A
    correction is made in the repository and arrives with the next import.
 4. **Nothing is endorsed by importing it.**
 5. **The server never fetches a repository.** The CLI reads files locally and
    sends only the files the manifest names. Anything else in the request body
-   is ignored. Limits: 64 files, 256 KB each, 24 spaces.
+   is ignored. Limits: 64 files, 256 Ki characters each, 2 Mi characters per
+   import, 24 spaces.
 
 What is imported **once** is the problem itself (title, description, the
 first three open questions as "think next" prompts). What is **re-derived on
@@ -154,7 +159,7 @@ Measured against the repository at `a4124eda19a1`:
 
 | problem space | imported units | skipped |
 |---|---|---|
-| `basel-38` | 24 | 3 code blocks, 2 orphaned lead-ins |
+| `basel-38` | 24 | 3 code blocks, 4 lead-ins (counted, not imported) |
 | `life-sciences` | 14 | 1 code block, 1 lead-in |
 | `rhine-manufacturing` | 14 | 1 code block |
 | `sponge-city` | 11 | 1 code block, 1 lead-in |

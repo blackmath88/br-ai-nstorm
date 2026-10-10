@@ -427,3 +427,45 @@ describe('over HTTP', () => {
     expect(res.body.curator.participant).toBe(1)
   })
 })
+
+describe('review fixes', () => {
+  it('caps all proposals for one contribution at the limit, participant judgement first', async () => {
+    harness = await createHarness()
+    const kai = await harness.actor('Kai')
+    const state = await harness.services.problems.getState('campus-ai')
+    const targets = state.contributions.filter((c) => c.status === 'active').slice(0, 8)
+    // Echo the targets' own text so the lexical curator has plenty to propose too.
+    const content = targets.map((c) => c.content).join(' However, ').slice(0, 7000)
+    const lexical = (await import('../curation/deterministic.js')).proposeDeterministically({
+      problemId: 'campus-ai',
+      contribution: { ...targets[0], id: 'probe', content },
+      candidates: state.contributions,
+    })
+    expect(lexical.length, 'precondition: the lexical curator proposes something').toBeGreaterThan(0)
+
+    const result = await harness.services.contributions.add(kai, {
+      problemId: 'campus-ai',
+      content,
+      proposals: targets.map((t) => ({ kind: 'conflict', targetId: t.id, reason: 'Model judgement.' })),
+    })
+    expect(result.proposals).toHaveLength(8)
+    expect(result.proposals.every((p) => p.proposedBy.startsWith('agent:'))).toBe(true)
+  })
+
+  it('honours a deployment default until a problem is switched', async () => {
+    const { buildTestServices } = await import('../container.js')
+    const spy = spyCurator()
+    const services = await buildTestServices({ curator: spy, defaultOrchestration: 'api' })
+    const kai = await services.auth.verify(services.auth.issueStable('Kai'))
+    const achim = await services.auth.verify(services.auth.issueStable('Achim'))
+
+    expect((await services.problems.list()).every((p) => p.orchestration.mode === 'api')).toBe(true)
+    await services.contributions.add(kai, { problemId: 'campus-ai', content: 'Seat licences scale badly.' })
+    expect(spy.calls).toBe(1)
+
+    await services.orchestration.setMode(achim, { problemId: 'campus-ai', mode: 'participant' })
+    await services.contributions.add(kai, { problemId: 'campus-ai', content: 'Usage-based pricing is fairer.' })
+    expect(spy.calls).toBe(1)
+    expect((await services.problems.list()).find((p) => p.id === 'campus-ai')?.orchestration.mode).toBe('participant')
+  })
+})
