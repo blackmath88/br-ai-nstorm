@@ -50,11 +50,22 @@ export class EventLog extends DurableObject {
     })
   }
 
-  async append(events: MemoryEvent[]): Promise<void> {
-    if (events.length === 0) return
+  /**
+   * Appends, optionally only if the log still has `ifVersion` events. A stale
+   * write is reported as a value rather than thrown: errors cross the RPC
+   * boundary as plain `Error`s and would lose the domain detail.
+   */
+  async append(events: MemoryEvent[], ifVersion?: number): Promise<void | { stale: true; expected: number; actual: number }> {
     await this.migrateLegacy()
     const seq = (await this.ctx.storage.get<number>(SEQ_KEY)) ?? 0
+    if (ifVersion !== undefined && ifVersion !== seq) return { stale: true, expected: ifVersion, actual: seq }
+    if (events.length === 0) return
     await this.write(events, seq)
+  }
+
+  async version(): Promise<number> {
+    await this.migrateLegacy()
+    return (await this.ctx.storage.get<number>(SEQ_KEY)) ?? 0
   }
 
   async appendIfEmpty(events: MemoryEvent[]): Promise<boolean> {

@@ -22,7 +22,7 @@ import {
 } from '../domain/policies.js'
 import { rankCandidates, PARTICIPANT_PROPOSAL_KINDS } from '../curation/participant.js'
 import type { ActorContext } from '../auth/actor-context.js'
-import { loadState, type ServiceDeps } from './support.js'
+import { loadState, withFreshState, type ServiceDeps } from './support.js'
 
 export interface ContextCandidate {
   id: string
@@ -136,7 +136,7 @@ export function createOrchestrationService(deps: ServiceDeps): OrchestrationServ
       }
     },
 
-    async setMode(actor, input) {
+    setMode: (actor, input) => withFreshState(deps, async (ifVersion) => {
       const state = await loadState(deps, input.problemId)
       const from = state.problem.orchestration.mode
       const to = assertMayChangeOrchestration(actor, {
@@ -156,9 +156,9 @@ export function createOrchestrationService(deps: ServiceDeps): OrchestrationServ
         eventType: 'OrchestrationModeChanged',
         payload: { from, to, ...(reason ? { reason } : {}) },
       })
-      await deps.repository.append([event])
+      await deps.repository.append([event], { ifVersion })
 
       return { mode: to, changedBy: actor.actorId, changedAt: event.timestamp, ...(reason ? { reason } : {}) }
-    },
+    }),
   }
 }

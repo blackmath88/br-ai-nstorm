@@ -7,10 +7,35 @@
  * methods and nothing above it changes.
  */
 import type { MemoryEvent } from '../domain/events.js'
+import { conflictError } from '../domain/errors.js'
+
+export interface AppendOptions {
+  /**
+   * Optimistic concurrency: append only if the whole log still holds exactly
+   * this many events — i.e. nothing was written since the caller read it.
+   * Otherwise reject with `StaleWriteError` and write nothing.
+   */
+  ifVersion?: number
+}
 
 export interface EventRepository {
   /** Appends events atomically, in order. Concurrent callers must not interleave. */
-  append(events: MemoryEvent[]): Promise<void>
+  append(events: MemoryEvent[], options?: AppendOptions): Promise<void>
   /** Reads the log, optionally filtered to one problem, in append order. */
   read(problemId?: string): Promise<MemoryEvent[]>
+  /** The whole log's length. Monotonic; the token `ifVersion` compares against. */
+  version(): Promise<number>
 }
+
+export const STALE_WRITE = 'stale_write'
+
+/** Someone else wrote first. Callers re-read and decide again (see `withFreshState`). */
+export const staleWrite = (expected: number, actual: number) =>
+  conflictError('The shared log changed while this was being decided. Try again.', {
+    reason: STALE_WRITE,
+    expected,
+    actual,
+  })
+
+export const isStaleWrite = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && (error as { detail?: { reason?: unknown } }).detail?.reason === STALE_WRITE

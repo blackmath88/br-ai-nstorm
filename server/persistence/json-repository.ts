@@ -15,7 +15,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import type { MemoryEvent } from '../domain/events.js'
-import type { EventRepository } from './repository.js'
+import { staleWrite, type EventRepository } from './repository.js'
 
 export interface JsonRepositoryOptions {
   file: string
@@ -60,10 +60,13 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
   }
 
   return {
-    append: (events) =>
+    append: (events, options) =>
       enqueue(async () => {
-        if (events.length === 0) return
         const current = await loadUnsafe()
+        if (options?.ifVersion !== undefined && options.ifVersion !== current.length) {
+          throw staleWrite(options.ifVersion, current.length)
+        }
+        if (events.length === 0) return
         const next = [...current, ...events]
         await saveUnsafe(next)
         cache = next
@@ -74,6 +77,8 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
         const events = await loadUnsafe()
         return problemId ? events.filter((event) => event.problemId === problemId) : [...events]
       }),
+
+    version: () => enqueue(async () => (await loadUnsafe()).length),
   }
 }
 
@@ -81,11 +86,17 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
 export function createMemoryRepository(seed: MemoryEvent[] = []): EventRepository {
   let events = [...seed]
   return {
-    async append(next) {
+    async append(next, options) {
+      if (options?.ifVersion !== undefined && options.ifVersion !== events.length) {
+        throw staleWrite(options.ifVersion, events.length)
+      }
       events = [...events, ...next]
     },
     async read(problemId) {
       return problemId ? events.filter((event) => event.problemId === problemId) : [...events]
+    },
+    async version() {
+      return events.length
     },
   }
 }
