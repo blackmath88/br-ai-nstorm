@@ -189,6 +189,39 @@ Architectural boundary at this point:
 > pays for knowingly. Whoever's model proposed something, a different person
 > decides it.
 
+## Milestone 0.5 — Ready for the field test (candidate)
+
+Branch: `ccr-00e0be58-t5hpg7`. When merged, preserve v0.4 as
+`milestone/orchestration-adoption-v0.4`.
+
+### What changed
+
+- Conflicts can be **closed** (resolved or dismissed), only by a person and
+  only with a note. Until now an accepted conflict could never leave `open`.
+- **Evaluations** got a UI and an MCP tool. Each person has one standing
+  judgement per contribution, and the log keeps every change of mind. Doubt
+  and requests for evidence feed *think next*.
+- **Liveness** by polling a per-problem version token. No push yet.
+- **Optimistic concurrency** on the event log. Found necessary by asking what
+  happens when three people accept the same proposal in the same second: the
+  old path recorded it three times.
+- **Field report**, so the session produces numbers rather than impressions.
+  The question it is built to answer is whether participant-mode curation is
+  good enough to justify its cost model.
+- The Node and Worker REST adapters now share **one router**.
+
+### What was intentionally not built
+
+- WebSocket or SSE push (polling is enough for three people);
+- OIDC (it needs a choice of provider);
+- MCP tools for closing conflicts and superseding (they retire things from the shared view; a person does them in the room);
+- any score or ranking derived from judgements.
+
+Architectural boundary at this point:
+
+> Nothing leaves the shared view silently: a conflict closes with a note, a
+> contribution retires visibly, a judgement is one person's and stays theirs.
+
 ## Working convention
 
 - `main` — latest coherent version to clone and work from.

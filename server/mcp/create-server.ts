@@ -15,7 +15,7 @@ import { McpServer, type AuthInfo, type McpServerFactory } from '@modelcontextpr
 import type { ActorContext, TokenVerifier } from '../auth/actor-context.js'
 import { registerTools, type ToolServices } from './register-tools.js'
 
-export const SERVER_INFO = { name: 'br-ai-nstorm', version: '0.4.0' } as const
+export const SERVER_INFO = { name: 'br-ai-nstorm', version: '0.5.0' } as const
 
 /**
  * Builds a configured server for one already-resolved participant. Cheap and
