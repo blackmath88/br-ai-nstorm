@@ -14,7 +14,7 @@ browser / React SPA
 Cloudflare Worker
   |- /api/*  -> existing application/domain services
   |- /health -> runtime status
-  |- /mcp    -> 501 in this visual demo
+  |- /mcp    -> stateless MCP (Streamable HTTP), same tools as Node
   `- assets  -> Vite dist/
        |
        v
@@ -29,6 +29,7 @@ The domain/application layers are reused unchanged. Cloudflare adds adapters at 
 - `worker/durable-repository.ts` — `EventRepository` adapter;
 - `worker/durable-event-log.ts` — serialized persistent event log;
 - `worker/demo-auth.ts` — stateless demo identity issuer/verifier;
+- `worker/mcp.ts` — MCP adapter: bearer gate + the SDK's fetch-shaped `createMcpHandler`;
 - `worker/index.ts` — Worker composition and static asset routing.
 
 ## Why Durable Objects instead of the local JSON store
@@ -49,9 +50,36 @@ Do not put private, sensitive or real participant data into this deployment. Rep
 
 ## MCP
 
-MCP remains on the Node v0.3 runtime for this deployment. `/mcp` on the Worker returns `501` intentionally.
+`/mcp` serves the same tool set as the Node runtime, from the same registration
+(`server/mcp/register-tools.ts`) and the same actor-bound factory
+(`createActorServerFactory` in `server/mcp/create-server.ts`). Only the transport
+face differs: the SDK's `createMcpHandler` is fetch-shaped, so the Worker hands it
+the `Request` directly (`worker/mcp.ts`).
 
-This keeps the deployment focused: first validate the shared-room UX from a real URL. Porting the MCP Streamable HTTP adapter to Workers is a separate transport task and should happen only if the visual/shared-state test warrants it.
+Deliberately **not** used: Cloudflare's `McpAgent` / a stateful transport inside a
+Durable Object. Cloudflare's current guidance marks that path legacy and
+recommends a stateless `createMcpHandler` for new servers; the room's state
+already lives in the event-log Durable Object, so a second stateful object would
+add nothing. In workerd the SDK's export conditions select a JSON-schema
+validator that does not need `eval`, so no extra wiring is required.
+
+Connect any MCP client to `https://<worker>/mcp` with
+`Authorization: Bearer demo-<name>` (e.g. `demo-lea`). The identity warning above
+applies: these tokens are labels, not credentials.
+
+The demo has no curator key, so `api` orchestration is listed but unavailable;
+problems run in `participant` mode (the connecting client's model curates) or
+`deterministic` mode.
+
+## Runtime note: Durable Object stubs are per request
+
+`worker/durable-repository.ts` resolves the Durable Object stub on every
+operation. The first version created it once and cached it with the
+isolate-scoped services; workerd refuses to let an I/O object created while
+serving one request be used by another, so every request after the first failed
+with `500` ("Cannot perform I/O on behalf of a different request"). Verified
+under `wrangler dev`: the cached version answered `200, 500, 500`; the
+per-operation version answers `200, 200, 200`.
 
 ## Deploy
 
@@ -77,6 +105,7 @@ npm run dev:cloudflare
 - several browser participants can see one event-derived memory;
 - refresh/restart does not erase the room;
 - the existing provenance/conflict/curation rules survive a different runtime;
-- deployment does not require changing the domain ontology.
+- deployment does not require changing the domain ontology;
+- external MCP clients can join the same room the browser participants see.
 
 It does **not** validate production authentication, multi-tenant isolation, production storage scale, live push, MCP-on-Workers, autonomous agents or ATProto federation.

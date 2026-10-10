@@ -51,7 +51,11 @@ const str = (value: unknown, field: string): string => {
 const optionalStr = (value: unknown, field: string): string | undefined =>
   value === undefined || value === null ? undefined : str(value, field)
 
-export async function handleApi(request: Request, services: WorkerServices): Promise<Response> {
+export async function handleApi(
+  request: Request,
+  services: WorkerServices,
+  mcp?: (request: Request) => Promise<Response>,
+): Promise<Response> {
   const url = new URL(request.url)
   const path = url.pathname
   const method = request.method
@@ -67,8 +71,9 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
         ok: true,
         runtime: 'cloudflare-worker',
         persistence: 'durable-object',
-        aiCurator: false,
+        aiCurator: services.curator.enabled,
         curator: services.curator.name,
+        mcp: '/mcp',
         prototypeAuth: true,
         orchestration: services.orchestration.options(),
       })
@@ -181,11 +186,8 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
       return json(200, result)
     }
 
-    if (path === '/mcp' || path.startsWith('/mcp/')) {
-      return json(501, {
-        error: 'not_implemented',
-        message: 'The visual Cloudflare demo currently exposes the REST room only. MCP remains on the Node v0.3 runtime.',
-      })
+    if (path === '/mcp' && mcp) {
+      return await mcp(request)
     }
 
     return json(404, { error: 'not_found', message: `No route for ${method} ${path}.` })

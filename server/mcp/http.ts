@@ -13,12 +13,12 @@
  * it alongside the REST API on one port.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { createMcpHandler, type AuthInfo, type McpServerFactory } from '@modelcontextprotocol/server'
+import { createMcpHandler, type AuthInfo } from '@modelcontextprotocol/server'
 import { toNodeHandler } from '@modelcontextprotocol/node'
 import type { Services } from '../container.js'
 import { bearerToken } from '../auth/actor-context.js'
 import { isDomainError } from '../domain/errors.js'
-import { createBrainstormServer } from './create-server.js'
+import { authInfoFor, createActorServerFactory } from './create-server.js'
 
 const UNAUTHORIZED = {
   jsonrpc: '2.0' as const,
@@ -27,22 +27,7 @@ const UNAUTHORIZED = {
 }
 
 export function createMcpNodeHandler(services: Services) {
-  const factory: McpServerFactory = (ctx) => {
-    const actorId = ctx.authInfo?.extra?.actorId
-    const displayName = ctx.authInfo?.extra?.displayName
-    if (typeof actorId !== 'string') {
-      // Unreachable via the gate below; a guard rather than a fallback, because
-      // an anonymous default here would silently forge attribution.
-      throw new Error('MCP request reached the factory without a resolved actor.')
-    }
-    return createBrainstormServer(services, {
-      actorId,
-      displayName: typeof displayName === 'string' ? displayName : actorId,
-      scopes: ctx.authInfo?.scopes ?? [],
-    })
-  }
-
-  const handler = createMcpHandler(factory, {
+  const handler = createMcpHandler(createActorServerFactory(services), {
     onerror: (error) => console.error('[br-ai-nstorm] MCP HTTP error:', error),
   })
   const node = toNodeHandler(handler)
@@ -51,14 +36,7 @@ export function createMcpNodeHandler(services: Services) {
     let authInfo: AuthInfo
     try {
       const token = bearerToken(req.headers.authorization)
-      const actor = await services.auth.verify(token)
-      authInfo = {
-        token,
-        clientId: actor.actorId,
-        scopes: actor.scopes,
-        expiresAt: Math.floor(Date.now() / 1000) + 3600,
-        extra: { actorId: actor.actorId, displayName: actor.displayName },
-      }
+      authInfo = authInfoFor(token, await services.auth.verify(token))
     } catch (error) {
       if (!isDomainError(error)) throw error
       res.writeHead(401, {

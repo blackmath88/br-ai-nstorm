@@ -81,7 +81,14 @@ const mutating = { readOnlyHint: false, idempotentHint: false, openWorldHint: fa
  * point: an MCP client cannot claim to be someone by putting a name in a tool
  * call. Identity was resolved before this server instance existed.
  */
-export function registerTools(server: McpServer, services: Services, actor: ActorContext): void {
+/**
+ * The slice of `Services` the tools use. Narrower than the full container on
+ * purpose: the Cloudflare Worker builds its own service set (different auth
+ * and persistence adapters) and must be able to serve the same tools.
+ */
+export type ToolServices = Pick<Services, 'problems' | 'contributions' | 'curation' | 'orchestration'>
+
+export function registerTools(server: McpServer, services: ToolServices, actor: ActorContext): void {
   server.registerTool(
     'list_problems',
     {
