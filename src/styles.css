@@ -115,3 +115,40 @@ textarea:disabled{opacity:.6}
 .orchestration-summary{margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
 .orchestration-reason{border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 9px;font-size:11px;color:var(--ink);outline:none}
 .orchestration-reason:focus{border-color:#91aca8}
+
+/* ---- v0.5: judgements, conflict closing, liveness, report --------------- */
+.stance-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.stance-chip{font-size:9.5px;font-weight:800;padding:3px 7px;border-radius:999px;background:var(--mint2);color:var(--ink)}
+.stance-chip.doubtful{background:#f2dcde}.stance-chip.needs_evidence{background:#f1e6cc}
+.conflict-actions{margin-top:9px}
+.conflict-close{display:grid;gap:8px;margin-top:9px}
+.note-input{min-height:64px}
+.closed-conflict .state-card-detail{font-style:italic}
+.status-chip.resolved{background:var(--mint2)}.status-chip.dismissed{background:#eee6d5}
+.selected-actions{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.selected-actions .section-kicker{margin:0}
+.judgement-list{margin:0;padding-left:16px;font-size:11px;color:var(--muted);line-height:1.5}
+.supersede summary{font-size:11px;font-weight:800;cursor:pointer;color:var(--muted)}
+.supersede{display:grid;gap:7px}.supersede[open]{padding-bottom:4px}
+.supersede select{border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 9px;font-size:11px;color:var(--ink);max-width:100%}
+.header-meta{display:grid;gap:6px;justify-items:end;align-self:flex-start}
+.live-indicator{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-weight:700}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(143,170,139,.25)}
+.report{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.report-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.report-table th,.report-table td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+.report-table th[scope=row],.report-table thead th:first-child{text-align:left}
+.report-table thead th{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.report-table tbody tr:last-child th,.report-table tbody tr:last-child td{border-bottom:0}
+.report-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.report-facts p{margin:0;font-size:12px}
+@media (max-width:720px){.header-meta{justify-items:start}}
+/* Narrow screens: a `1fr` track grows to its content's min width, so wide
+   tables or tab rows pushed the whole page sideways. Pin tracks to
+   minmax(0,1fr) and let rows that cannot wrap scroll within themselves. */
+.main-panel,.side-rail,.view-body{min-width:0}
+.view-switcher{overflow-x:auto}
+.view-switcher button{flex:0 0 auto}
+@media(max-width:1100px){.workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:720px){.side-rail{grid-template-columns:minmax(0,1fr)}.problem-header{padding:16px 14px 10px}.view-switcher{padding:0 10px 10px}}

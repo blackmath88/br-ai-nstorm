@@ -5,13 +5,129 @@
  * the event log by the server, so "what happened to my contribution" is an
  * answer rather than a mock-up.
  */
-import type { ContributionRecord, ProblemUpdates } from '../lib/api'
+import { useEffect, useState } from 'react'
+import type { ContributionRecord, EvaluationRecord, ProblemUpdates, Stance } from '../lib/api'
 import { attribution } from './StateView'
 import { actorLabel } from './TimelineView'
+
+const STANCES: Array<{ stance: Stance; label: string }> = [
+  { stance: 'useful', label: 'Useful' },
+  { stance: 'doubtful', label: 'Doubtful' },
+  { stance: 'needs_evidence', label: 'Needs evidence' },
+]
+
+/**
+ * Judging and retiring the selected contribution. Both are human acts on the
+ * record: a judgement is attributed and counted, never averaged; superseding
+ * keeps the old contribution, visibly retired.
+ */
+function SelectedActions({
+  selected,
+  evaluations,
+  actorId,
+  candidates,
+  onEvaluate,
+  onSupersede,
+  busy,
+}: {
+  selected: ContributionRecord
+  evaluations: EvaluationRecord[]
+  actorId: string | null
+  candidates: ContributionRecord[]
+  onEvaluate: (stance: Stance, note?: string) => void
+  onSupersede: (supersededBy: string, reason?: string) => void
+  busy: boolean
+}) {
+  const [note, setNote] = useState('')
+  const [replacement, setReplacement] = useState('')
+  const [reason, setReason] = useState('')
+  useEffect(() => {
+    setNote('')
+    setReplacement('')
+    setReason('')
+  }, [selected.id])
+
+  const judgements = evaluations.filter((e) => e.targetId === selected.id)
+  const mine = judgements.find((e) => e.actorId === actorId)
+  const others = judgements.filter((e) => e.actorId !== actorId)
+
+  return (
+    <div className="selected-actions">
+      <div className="section-kicker">Your judgement</div>
+      <div className="segmented" role="radiogroup" aria-label="Your judgement">
+        {STANCES.map(({ stance, label }) => (
+          <button
+            key={stance}
+            role="radio"
+            aria-checked={mine?.stance === stance}
+            className={mine?.stance === stance ? 'active' : ''}
+            disabled={busy || !actorId || selected.status !== 'active'}
+            onClick={() => {
+              onEvaluate(stance, note.trim() || undefined)
+              setNote('')
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <input
+        className="orchestration-reason"
+        placeholder="Optional note with your judgement"
+        value={note}
+        maxLength={1000}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      {others.length > 0 && (
+        <ul className="judgement-list">
+          {others.map((e) => (
+            <li key={e.id}>
+              <strong>{actorLabel(e.actorId)}</strong> {e.stance.replace('_', ' ')}
+              {e.note ? ` — “${e.note}”` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {selected.status === 'active' && candidates.length > 0 && (
+        <details className="supersede">
+          <summary>Superseded by another contribution…</summary>
+          <select value={replacement} onChange={(event) => setReplacement(event.target.value)}>
+            <option value="">Choose the contribution that replaces this one</option>
+            {candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <input
+            className="orchestration-reason"
+            placeholder="Why (optional, recorded in history)"
+            value={reason}
+            maxLength={200}
+            onChange={(event) => setReason(event.target.value)}
+          />
+          <button
+            className="button"
+            disabled={busy || !replacement}
+            onClick={() => onSupersede(replacement, reason.trim() || undefined)}
+          >
+            Supersede — keep it, visibly retired
+          </button>
+        </details>
+      )}
+    </div>
+  )
+}
 
 export function SideRail({
   updates,
   selected,
+  evaluations,
+  contributions,
+  actorId,
+  onEvaluate,
+  onSupersede,
   draft,
   setDraft,
   onAdd,
@@ -21,6 +137,11 @@ export function SideRail({
 }: {
   updates: ProblemUpdates
   selected?: ContributionRecord
+  evaluations: EvaluationRecord[]
+  contributions: ContributionRecord[]
+  actorId: string | null
+  onEvaluate: (targetId: string, stance: Stance, note?: string) => void
+  onSupersede: (contributionId: string, supersededBy: string, reason?: string) => void
   draft: string
   setDraft: (value: string) => void
   onAdd: () => void
@@ -137,6 +258,15 @@ export function SideRail({
                 <strong>status</strong> {selected.status} · {new Date(selected.createdAt).toLocaleString()}
               </div>
             </div>
+            <SelectedActions
+              selected={selected}
+              evaluations={evaluations}
+              actorId={actorId}
+              candidates={contributions.filter((c) => c.status === 'active' && c.id !== selected.id)}
+              onEvaluate={(stance, note) => onEvaluate(selected.id, stance, note)}
+              onSupersede={(by, reason) => onSupersede(selected.id, by, reason)}
+              busy={busy}
+            />
           </div>
         ) : (
           <p className="muted">Select anything in State or Map to inspect its full provenance chain.</p>

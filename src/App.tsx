@@ -8,20 +8,21 @@
  * State stays canonical. Map and Timeline are projections over the same data.
  */
 import { useMemo, useState } from 'react'
-import { BrainCircuit, GitBranch, History, LayoutList, ListChecks, RefreshCw, Sparkles } from 'lucide-react'
+import { BarChart3, BrainCircuit, GitBranch, History, LayoutList, ListChecks, RefreshCw, Sparkles } from 'lucide-react'
 import { useRoom } from './state/useRoom'
 import { ProblemTabs } from './components/ProblemTabs'
 import { StateView } from './components/StateView'
 import { MapView } from './components/MapView'
 import { TimelineView } from './components/TimelineView'
 import { CurationPanel } from './components/CurationPanel'
+import { ReportView } from './components/ReportView'
 import { SideRail } from './components/SideRail'
 import { ApertureModal } from './components/ApertureModal'
 import { ParticipantSwitcher } from './components/ParticipantSwitcher'
 import { createContextPackage, validateContributionPackage } from './lib/aperture'
 import { api } from './lib/api'
 
-type ViewMode = 'state' | 'map' | 'timeline' | 'curation'
+type ViewMode = 'state' | 'map' | 'timeline' | 'curation' | 'report'
 type ModalMode = 'export' | 'import' | null
 
 export default function App() {
@@ -206,7 +207,13 @@ export default function App() {
                 <h1>{problem.title}</h1>
                 <p>{problem.description}</p>
               </div>
-              <div className="state-summary">{stateSummary}</div>
+              <div className="header-meta">
+                <div className="state-summary">{stateSummary}</div>
+                <div className="live-indicator" title="This room checks for other people’s changes every few seconds.">
+                  <span className="live-dot" aria-hidden="true" />
+                  {room.liveAt ? `live · updated ${new Date(room.liveAt).toLocaleTimeString()}` : 'live'}
+                </div>
+              </div>
             </div>
 
             <div className="view-switcher" role="tablist">
@@ -224,6 +231,9 @@ export default function App() {
                 <ListChecks size={15} /> Curation
                 {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
               </button>
+              <button className={view === 'report' ? 'active' : ''} onClick={() => setView('report')}>
+                <BarChart3 size={15} /> Report
+              </button>
             </div>
 
             <div className="view-body">
@@ -231,8 +241,11 @@ export default function App() {
                 <StateView
                   contributions={data.state.contributions}
                   conflicts={data.conflicts.all}
+                  evaluations={data.state.evaluations}
                   onSelect={setSelectedId}
                   selectedId={selectedId}
+                  onCloseConflict={room.resolveConflict}
+                  busy={room.busy}
                 />
               )}
               {view === 'map' && (
@@ -245,6 +258,9 @@ export default function App() {
               )}
               {view === 'timeline' && (
                 <TimelineView events={data.events} contributions={data.state.contributions} />
+              )}
+              {view === 'report' && (
+                <ReportView token={room.token} problemId={problem.id} version={data.version} />
               )}
               {view === 'curation' && (
                 <CurationPanel
@@ -264,6 +280,11 @@ export default function App() {
           <SideRail
             updates={data.updates}
             selected={selected}
+            evaluations={data.state.evaluations}
+            contributions={data.state.contributions}
+            actorId={room.actor?.actorId ?? null}
+            onEvaluate={(targetId, stance, note) => void room.evaluate(targetId, stance, note)}
+            onSupersede={(id, by, reason) => void room.supersede(id, by, reason)}
             draft={draft}
             setDraft={setDraft}
             onAdd={() => void handleAdd()}

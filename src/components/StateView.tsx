@@ -5,7 +5,9 @@
  * of the knowledge here, not an error state, so it is not tucked away in a
  * panel the reader has to go looking for.
  */
-import type { ConflictRecord, ContributionKind, ContributionRecord } from '../lib/api'
+import { useState } from 'react'
+import type { ConflictRecord, ContributionKind, ContributionRecord, EvaluationRecord } from '../lib/api'
+import { actorLabel } from './TimelineView'
 
 const ORDER: ContributionKind[] = ['question', 'approach', 'evidence', 'assumption', 'contradiction', 'claim', 'synthesis']
 
@@ -17,6 +19,88 @@ const HEADINGS: Record<ContributionKind, string> = {
   contradiction: 'Tensions',
   claim: 'Claims',
   synthesis: 'Emerging synthesis',
+}
+
+const STANCE_LABEL: Record<EvaluationRecord['stance'], string> = {
+  useful: 'useful',
+  doubtful: 'doubtful',
+  needs_evidence: 'needs evidence',
+}
+
+/** Counts per stance — shown as counts, never folded into a score. */
+export function stanceCounts(evaluations: EvaluationRecord[], targetId: string) {
+  const counts: Partial<Record<EvaluationRecord['stance'], number>> = {}
+  for (const e of evaluations) if (e.targetId === targetId) counts[e.stance] = (counts[e.stance] ?? 0) + 1
+  return counts
+}
+
+function StanceChips({ counts }: { counts: Partial<Record<EvaluationRecord['stance'], number>> }) {
+  const entries = Object.entries(counts) as Array<[EvaluationRecord['stance'], number]>
+  if (entries.length === 0) return null
+  return (
+    <span className="stance-chips">
+      {entries.map(([stance, n]) => (
+        <span className={`stance-chip ${stance}`} key={stance}>
+          {n} {STANCE_LABEL[stance]}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/** Closing a conflict asks for the note the group keeps; nothing closes silently. */
+function CloseConflict({
+  onClose,
+  busy,
+}: {
+  onClose: (action: 'resolve' | 'dismiss', note: string) => Promise<boolean>
+  busy: boolean
+}) {
+  const [action, setAction] = useState<'resolve' | 'dismiss' | null>(null)
+  const [note, setNote] = useState('')
+  if (!action) {
+    return (
+      <div className="button-row conflict-actions">
+        <button className="button" disabled={busy} onClick={() => setAction('resolve')}>
+          Resolve…
+        </button>
+        <button className="button" disabled={busy} onClick={() => setAction('dismiss')}>
+          Not a real conflict…
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="conflict-close">
+      <textarea
+        className="note-input"
+        value={note}
+        maxLength={1000}
+        autoFocus
+        placeholder={action === 'resolve' ? 'How was it resolved? This note stays with the conflict.' : 'Why is this not a real conflict?'}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <div className="button-row">
+        <button
+          className="button primary"
+          disabled={busy || note.trim().length < 10}
+          onClick={() => {
+            void onClose(action, note.trim()).then((done) => {
+              if (done) {
+                setAction(null)
+                setNote('')
+              }
+            })
+          }}
+        >
+          {action === 'resolve' ? 'Record resolution' : 'Dismiss with note'}
+        </button>
+        <button className="button" disabled={busy} onClick={() => setAction(null)}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
 }
 
 const CONFLICT_LABEL: Record<string, string> = {
@@ -45,18 +129,26 @@ export function attribution(contribution: ContributionRecord): string {
 export function StateView({
   contributions,
   conflicts,
+  evaluations,
   onSelect,
   selectedId,
+  onCloseConflict,
+  busy,
 }: {
   contributions: ContributionRecord[]
   conflicts: ConflictRecord[]
+  evaluations: EvaluationRecord[]
   onSelect: (id: string) => void
   selectedId?: string
+  onCloseConflict: (conflictId: string, action: 'resolve' | 'dismiss', note: string) => Promise<boolean>
+  busy: boolean
 }) {
   const active = contributions.filter((c) => c.status === 'active')
   const superseded = contributions.filter((c) => c.status === 'superseded')
   const byId = new Map(contributions.map((c) => [c.id, c]))
   const open = conflicts.filter((c) => c.status === 'open')
+  const closed = conflicts.filter((c) => c.status !== 'open')
+  const label = (id: string) => byId.get(id)?.label ?? id
 
   return (
     <div className="state-stack">
@@ -82,6 +174,7 @@ export function StateView({
                   </button>
                 </div>
                 <p className="conflict-reason">{conflict.reason}</p>
+                <CloseConflict busy={busy} onClose={(action, note) => onCloseConflict(conflict.id, action, note)} />
               </div>
             ))}
           </div>
@@ -110,6 +203,7 @@ export function StateView({
                     </span>
                     <span className="state-card-detail">{contribution.content}</span>
                     <span className="state-card-meta">{attribution(contribution)}</span>
+                    <StanceChips counts={stanceCounts(evaluations, contribution.id)} />
                   </button>
                 ))}
               </div>
@@ -131,6 +225,29 @@ export function StateView({
                   {attribution(contribution)} · superseded by {byId.get(contribution.supersededBy ?? '')?.label ?? '—'}
                 </span>
               </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {closed.length > 0 && (
+        <section className="state-section closed-conflicts">
+          <div className="section-kicker">Closed conflicts · kept with their notes · {closed.length}</div>
+          <div className="state-list">
+            {closed.map((conflict) => (
+              <div className="state-card muted-card closed-conflict" key={conflict.id}>
+                <span className="state-card-top">
+                  <span className={`status-chip ${conflict.status}`}>{conflict.status}</span>
+                  <strong>
+                    {label(conflict.leftObjectId)} ↔ {label(conflict.rightObjectId)}
+                  </strong>
+                </span>
+                <span className="state-card-detail">“{conflict.resolutionNote}”</span>
+                <span className="state-card-meta">
+                  {conflict.resolvedBy ? actorLabel(conflict.resolvedBy) : '—'}
+                  {conflict.resolvedAt ? ` · ${new Date(conflict.resolvedAt).toLocaleDateString()}` : ''}
+                </span>
+              </div>
             ))}
           </div>
         </section>

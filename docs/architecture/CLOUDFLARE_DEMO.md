@@ -81,6 +81,15 @@ access. Verified under `wrangler dev` against local state that the old version
 wrote. `list()` reads the whole log, which is fine at demo scale. Above that,
 the ADR-003 Postgres triggers apply here as well.
 
+## Concurrency
+
+`append(events, ifVersion)` checks the sequence counter inside the object.
+Durable Objects serialise requests, so check-then-write cannot interleave
+with another write. A stale write is returned as a value rather than thrown,
+because errors lose their domain detail when they cross the RPC boundary.
+Verified under `wrangler dev`: three simultaneous accepts of one proposal
+returned `200, 422, 422` and recorded one conflict.
+
 ## Runtime note: Durable Object stubs are per request
 
 `worker/durable-repository.ts` resolves the Durable Object stub on every

@@ -1,7 +1,7 @@
 {
   "name": "br-ai-nstorm",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "dev:cloudflare": "npm run build && npx wrangler@latest dev",
     "mcp": "tsx server/mcp/stdio.ts",
     "brainstorm": "tsx scripts/brainstorm.ts",
+    "smoke": "tsx scripts/smoke.ts",
     "build": "npm run typecheck && vite build",
     "deploy": "npm run build && npx wrangler@latest deploy",
     "preview": "vite preview",

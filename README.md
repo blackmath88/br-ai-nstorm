@@ -19,6 +19,32 @@ The rule the whole system is built around:
 
 > AI may interpret and propose. It may not silently rewrite collective memory.
 
+## v0.5 — Ready for the field test
+
+What the [field test](docs/FIELD_TEST.md) needs, and nothing else:
+
+- **Items now have a full life.** A person closes an accepted conflict as
+  *resolved* or *dismissed*, and has to write a note saying how or why. The
+  record stays. Each participant has one standing judgement per contribution
+  (`useful`, `doubtful`, `needs_evidence`): judgements are counted, never
+  averaged, and requests for evidence become *think next* prompts.
+  Contributions can be superseded from the room.
+- **Live room.** The UI polls a cheap per-problem version token and re-reads
+  only when someone else changed that problem, so nobody presses Refresh
+  during a session.
+- **Field report** (Report tab, `GET …/report`, MCP `get_field_report`):
+  proposals by origin (a participant's AI, the server's AI, lexical matching)
+  and by the mode they were made under, with acceptance rates (shown with how
+  many reviews they're based on) and review times; participation by channel.
+- **No lost or doubled decisions.** The log takes an `ifVersion` on append.
+  Review, mode switches, imports and conflict closing re-decide on fresh
+  state if someone wrote first. Three simultaneous accepts of one proposal
+  produce one decision (verified against the Worker under workerd).
+- **One routing table.** `server/http/routes.ts` serves Node and the Worker,
+  so their REST surfaces can no longer drift apart.
+- `npm run smoke -- --url <room>` rehearses a whole session over MCP as three
+  people, using a throwaway problem.
+
 ## v0.4 — Orchestration, remote MCP, repository adoption
 
 Three additions, chosen from what the repository and its open issue asked for
@@ -164,6 +190,11 @@ a `WWW-Authenticate: Bearer` challenge.
 | `GET` | `/api/problems/:id/orchestration` | current mode and which modes are available |
 | `POST` | `/api/problems/:id/orchestration` | switch mode (`{ mode, reason? }`) |
 | `GET` | `/api/problems/:id/context?draft=` | bounded candidates and instructions for a participant's LLM |
+| `GET` | `/api/problems/:id/version` | cheap change token for polling |
+| `GET` | `/api/problems/:id/report` | field report: curation quality and participation |
+| `POST` | `/api/problems/:id/evaluations` | record your judgement (`{ targetId, stance, note? }`) |
+| `POST` | `/api/problems/:id/conflicts/:conflictId/resolve` | close a conflict (`{ action: resolve\|dismiss, note }`) |
+| `POST` | `/api/problems/:id/contributions/:contributionId/supersede` | retire a contribution in favour of another |
 | `POST` | `/api/imports/preview` | what a repository import would add, and what is stale |
 | `POST` | `/api/imports` | import a repository bundle (`{ manifest, files, revision? }`) |
 | `POST` | `/api/curation/:proposalId/accept` | make a proposal canonical |
@@ -188,13 +219,15 @@ same path on the Cloudflare Worker. Identity reaches the server factory as
 Tools: `list_problems` · `get_problem_overview` · `get_contributions` ·
 `get_contribution_context` · `get_problem_state` · `get_problem_updates` ·
 `get_my_contributions` · `get_conflicts` · `propose_contribution` ·
-`review_curation_proposal`.
+`evaluate_contribution` · `get_field_report` · `review_curation_proposal`.
 
 The intended loop for a participant's model: `get_problem_overview` →
 `get_contributions` for what matters → `get_contribution_context` with the
 draft → `propose_contribution` with `proposals` (in `participant` mode).
 Switching orchestration mode is deliberately **not** an MCP tool: it moves cost,
-so it stays a click by a person in the room.
+so it stays a click by a person in the room. Closing a conflict and
+superseding aren't MCP tools either. Each one retires something from the
+shared view, and the person doing it should be looking at the room.
 
 Every tool declares an `inputSchema` and an `outputSchema`, returns `content`
 plus `structuredContent`, and reports operation failures as in-band
@@ -344,7 +377,7 @@ scripts/brainstorm.ts  adoption CLI: init · build · preview · push
 
 ## Tests
 
-`npm test` — 120 tests across eight files. `npm run typecheck` covers the
+`npm test` — 135 tests across ten files. `npm run typecheck` covers the
 frontend, the server and the Worker.
 
 The decisive one is `server/test/integration.test.ts`: Kai contributes over
@@ -372,9 +405,8 @@ event/provenance/curation model before infrastructure arrives. The triggers for
 moving to Postgres are recorded in ADR-003 §4, so it stays a decision rather
 than a drift.
 
-`EvaluationAdded` and `VisibilityChanged` are modelled and projected but no UI
-drives them yet — they exist so the log shape does not change when the UI
-arrives.
+`VisibilityChanged` is modelled and projected but no UI drives it yet, so the
+log shape will not change when one arrives.
 
 Adoption Level 3 (Observstory evidence in, Weavr intent out) is described in
 ADOPTION.md and not built.
@@ -388,6 +420,7 @@ ADOPTION.md and not built.
 - [docs/architecture/REFERENCE_IMPLEMENTATIONS.md](docs/architecture/REFERENCE_IMPLEMENTATIONS.md) — per-repo evaluation, licences, what not to copy
 - [docs/architecture/ADR-003-v0.3-shared-room.md](docs/architecture/ADR-003-v0.3-shared-room.md) — the v0.3 decision
 - [docs/ADOPTION.md](docs/ADOPTION.md) — Brainstorm as a reusable problem-space form (issue #4)
+- [docs/FIELD_TEST.md](docs/FIELD_TEST.md) — the three-person session: setup, protocol, what counts as a negative result
 - [docs/architecture/CLOUDFLARE_DEMO.md](docs/architecture/CLOUDFLARE_DEMO.md) — Worker deployment, including MCP
 
 ## Next validation
