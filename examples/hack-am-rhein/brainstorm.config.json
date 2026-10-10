@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "repository": "blackmath88/hack-am-rhein",
+  "problemSpaces": [
+    {
+      "id": "basel-38",
+      "brief": "challenges/basel-38/BRIEF.md",
+      "sources": [
+        "challenges/basel-38/BRAINSTORM.md"
+      ]
+    },
+    {
+      "id": "life-sciences",
+      "brief": "challenges/life-sciences/BRIEF.md",
+      "sources": [
+        "challenges/life-sciences/BRAINSTORM.md"
+      ]
+    },
+    {
+      "id": "rhine-manufacturing",
+      "brief": "challenges/rhine-manufacturing/BRIEF.md",
+      "sources": [
+        "challenges/rhine-manufacturing/BRAINSTORM.md"
+      ]
+    },
+    {
+      "id": "sponge-city",
+      "brief": "challenges/sponge-city/BRIEF.md",
+      "sources": [
+        "challenges/sponge-city/BRAINSTORM.md"
+      ]
+    }
+  ]
+}

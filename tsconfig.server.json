@@ -22,6 +22,8 @@
   },
   "include": [
     "server",
+    "scripts",
+    "worker/cloudflare-workers.d.ts",
     "src/data",
     "src/types"
   ]

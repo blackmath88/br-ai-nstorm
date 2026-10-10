@@ -36,9 +36,21 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
   res.end(JSON.stringify(body, null, 2))
 }
 
+/**
+ * Above the largest legitimate body: an import bundle is capped at 2 Mi
+ * characters of source (`MAX_IMPORT_TOTAL_CHARS`), which is at most ~12 MiB
+ * once UTF-8 encoded and JSON-escaped, even for non-Latin text.
+ */
+const MAX_BODY_BYTES = 16 * 1024 * 1024
+
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(chunk as Buffer)
+  let size = 0
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length
+    if (size > MAX_BODY_BYTES) throw invalid('Request body is too large.')
+    chunks.push(chunk as Buffer)
+  }
   const raw = Buffer.concat(chunks).toString('utf8').trim()
   if (!raw) return {}
   try {
@@ -93,6 +105,7 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
           aiCurator: services.curator.enabled,
           curator: services.curator.name,
           prototypeAuth: options.enablePrototypeAuth,
+          orchestration: services.orchestration.options(),
         })
       }
 
@@ -118,6 +131,14 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
         return send(res, 200, { conflictTypes: CONFLICT_KIND_MEANING })
       }
 
+      if (method === 'POST' && (path === '/api/imports' || path === '/api/imports/preview')) {
+        const actor = await withActor(req)
+        const body = await readJson(req)
+        return path.endsWith('/preview')
+          ? send(res, 200, await services.imports.preview(actor, body))
+          : send(res, 201, await services.imports.apply(actor, body))
+      }
+
       const problemMatch = /^\/api\/problems\/([^/]+)(?:\/([^/]+))?$/.exec(path)
       if (problemMatch) {
         const problemId = decodeURIComponent(problemMatch[1])
@@ -125,6 +146,9 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
         const actor = await withActor(req)
 
         if (method === 'GET' && !section) {
+          if (url.searchParams.get('detail') === 'compact') {
+            return send(res, 200, { ...(await services.problems.getCompactState(problemId)), viewer: actor })
+          }
           return send(res, 200, {
             ...(await services.problems.getState(problemId)),
             viewer: actor,
@@ -151,6 +175,22 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
             contributions: await services.problems.getMyContributions(problemId, actor),
           })
         }
+        if (method === 'GET' && section === 'orchestration') {
+          return send(res, 200, await services.orchestration.get(problemId))
+        }
+        if (method === 'POST' && section === 'orchestration') {
+          const body = await readJson(req)
+          const reason = optionalStr(body.reason, 'reason')
+          const orchestration = await services.orchestration.setMode(actor, {
+            problemId,
+            mode: body.mode,
+            ...(reason ? { reason } : {}),
+          })
+          return send(res, 200, { orchestration, options: services.orchestration.options() })
+        }
+        if (method === 'GET' && section === 'context') {
+          return send(res, 200, await services.orchestration.context(problemId, url.searchParams.get('draft') ?? ''))
+        }
         if (method === 'POST' && section === 'contributions') {
           const body = await readJson(req)
           const kind = optionalStr(body.kind, 'kind')
@@ -164,6 +204,7 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
             ...(source ? { source: source as ContributionSource } : {}),
             ...(sourceDetail ? { sourceDetail } : {}),
             ...(preparedBy ? { preparedBy } : {}),
+            ...(body.proposals !== undefined ? { proposals: body.proposals } : {}),
           })
           return send(res, 201, result)
         }

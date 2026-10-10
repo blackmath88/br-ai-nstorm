@@ -53,6 +53,8 @@ export async function createHarness(options: { curator?: Curator; seed?: boolean
     ids: createIdSource(),
     auth: createPrototypeAuth({ deterministicTokens: true }),
     curator: options.curator ?? nullCurator,
+    // Tests never inherit BRAINSTORM_DEFAULT_ORCHESTRATION from the shell.
+    defaultOrchestration: null,
     ...(options.seed === false ? { seed: false } : {}),
   })
 

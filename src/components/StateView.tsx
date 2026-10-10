@@ -29,7 +29,13 @@ const CONFLICT_LABEL: Record<string, string> = {
 
 /** Reads the person out of a provenance envelope without flattening the roles. */
 export function attribution(contribution: ContributionRecord): string {
-  const { authoredBy, preparedBy, endorsement } = contribution.provenance
+  const { authoredBy, preparedBy, endorsement, source, sourceRef } = contribution.provenance
+  if (source === 'repo_import') {
+    // "name · path#L5-L7 · unreviewed"
+    const repo = authoredBy.replace(/^repo:/, '').split('/').pop()
+    const where = sourceRef ? `${sourceRef.path}#L${sourceRef.startLine}` : undefined
+    return `${repo}${where ? ` · ${where}` : ''}${endorsement === 'human_endorsed' ? '' : ' · unreviewed'}`
+  }
   const who = authoredBy.replace(/^person:/, '').replace(/^seed:/, '')
   if (!preparedBy) return who
   // "AI prepared" is never displayed as "human authored".

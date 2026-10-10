@@ -15,10 +15,11 @@ import type {
 import { CONTRIBUTION_KINDS } from '../domain/types.js'
 import { invalid, notFound } from '../domain/errors.js'
 import {
-  assertContributionContent, assertMayEdit, assertMaySupersede, assertHumanActor,
+  assertContributionContent, assertMayEdit, assertMaySupersede, assertHumanActor, PROPOSALS_PER_CONTRIBUTION_LIMIT,
 } from '../domain/policies.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { proposeDeterministically, inferKind, type ProposalDraft } from '../curation/deterministic.js'
+import { agentIdFor, screenParticipantProposals, type DroppedProposal } from '../curation/participant.js'
 import { loadState, type ServiceDeps } from './support.js'
 
 export interface AddContributionInput {
@@ -31,12 +32,28 @@ export interface AddContributionInput {
   preparedBy?: string
   endorsement?: Endorsement
   visibility?: Visibility
+  /**
+   * Proposals the contributor's own LLM attached (`participant` orchestration).
+   * Unvalidated on arrival; screened against canonical state before anything
+   * is appended. See `curation/participant.ts`.
+   */
+  proposals?: unknown
 }
 
 export interface AddContributionResult {
   contribution: ContributionRecord
   proposals: import('../domain/types.js').CurationProposal[]
-  curator: { deterministic: number; ai: number; aiEnabled: boolean }
+  curator: {
+    /** The problem's orchestration mode at the time of this contribution. */
+    mode: import('../domain/types.js').OrchestrationMode
+    deterministic: number
+    ai: number
+    participant: number
+    trimmed: number
+    aiEnabled: boolean
+  }
+  /** Participant proposals that were not recorded, each with the reason. */
+  dropped: DroppedProposal[]
 }
 
 export interface ContributionService {
@@ -120,14 +137,38 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         candidates,
       })
 
+      const mode = state.problem.orchestration.mode
+
+      // The operator's key is spent only when the problem has explicitly
+      // switched to `api` — never as a silent fallback.
       let ai: ProposalDraft[] = []
-      try {
-        ai = await deps.curator.propose({ problem: state.problem, contribution, candidates })
-      } catch (error) {
-        console.error('[br-ai-nstorm] curator failed, continuing without it:', error)
+      if (mode === 'api') {
+        try {
+          ai = await deps.curator.propose({ problem: state.problem, contribution, candidates })
+        } catch (error) {
+          console.error('[br-ai-nstorm] curator failed, continuing without it:', error)
+        }
       }
 
-      const drafts = dedupe([...deterministic, ...ai], state.proposals)
+      const screened = screenParticipantProposals({
+        problemId: input.problemId,
+        mode,
+        contribution,
+        contributions: state.contributions,
+        proposals: input.proposals,
+        agentId: agentIdFor(input.preparedBy),
+        onBehalfOf: actor.actorId,
+      })
+
+      // Participant judgement first (it is the mode's curation), then the
+      // server curator, then lexical matching — and one cap over all of them,
+      // so a contribution never asks more of a reviewer than the limit.
+      // Participant drafts are themselves capped at the same limit, so the
+      // cap only ever trims curator output.
+      const drafts = dedupe([...screened.drafts, ...ai, ...deterministic], state.proposals).slice(
+        0,
+        PROPOSALS_PER_CONTRIBUTION_LIMIT,
+      )
       const proposalEvents: MemoryEvent[] = []
       const proposals: import('../domain/types.js').CurationProposal[] = []
 
@@ -155,10 +196,16 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         contribution,
         proposals,
         curator: {
-          deterministic: deterministic.length,
-          ai: ai.length,
+          mode,
+          // What was actually recorded from each source, after dedupe and the cap.
+          deterministic: deterministic.filter((draft) => drafts.includes(draft)).length,
+          ai: ai.filter((draft) => drafts.includes(draft)).length,
+          participant: screened.drafts.filter((draft) => drafts.includes(draft)).length,
+          /** Curator drafts not recorded because the contribution reached the cap. */
+          trimmed: deterministic.length + ai.length + screened.drafts.length - drafts.length,
           aiEnabled: deps.curator.enabled,
         },
+        dropped: screened.dropped,
       }
     },
 

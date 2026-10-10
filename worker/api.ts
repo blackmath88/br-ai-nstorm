@@ -26,8 +26,15 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
     headers: { ...CORS, ...headers },
   })
 
+/** Same ceiling as the Node adapter (see MAX_BODY_BYTES in server/http/api.ts). */
+const MAX_BODY_BYTES = 16 * 1024 * 1024
+
 async function readJson(request: Request): Promise<Record<string, unknown>> {
+  const declared = Number(request.headers.get('content-length') ?? '0')
+  if (declared > MAX_BODY_BYTES) throw invalid('Request body is too large.')
   const raw = await request.text()
+  // content-length can be absent (chunked); check what actually arrived too.
+  if (raw.length > MAX_BODY_BYTES) throw invalid('Request body is too large.')
   if (!raw.trim()) return {}
   try {
     const parsed: unknown = JSON.parse(raw)
@@ -51,7 +58,11 @@ const str = (value: unknown, field: string): string => {
 const optionalStr = (value: unknown, field: string): string | undefined =>
   value === undefined || value === null ? undefined : str(value, field)
 
-export async function handleApi(request: Request, services: WorkerServices): Promise<Response> {
+export async function handleApi(
+  request: Request,
+  services: WorkerServices,
+  mcp?: (request: Request) => Promise<Response>,
+): Promise<Response> {
   const url = new URL(request.url)
   const path = url.pathname
   const method = request.method
@@ -67,9 +78,11 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
         ok: true,
         runtime: 'cloudflare-worker',
         persistence: 'durable-object',
-        aiCurator: false,
+        aiCurator: services.curator.enabled,
         curator: services.curator.name,
+        mcp: '/mcp',
         prototypeAuth: true,
+        orchestration: services.orchestration.options(),
       })
     }
 
@@ -94,6 +107,14 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
       return json(200, { conflictTypes: CONFLICT_KIND_MEANING })
     }
 
+    if (method === 'POST' && (path === '/api/imports' || path === '/api/imports/preview')) {
+      const actor = await withActor()
+      const body = await readJson(request)
+      return path.endsWith('/preview')
+        ? json(200, await services.imports.preview(actor, body))
+        : json(201, await services.imports.apply(actor, body))
+    }
+
     const problemMatch = /^\/api\/problems\/([^/]+)(?:\/([^/]+))?$/.exec(path)
     if (problemMatch) {
       const problemId = decodeURIComponent(problemMatch[1])
@@ -101,6 +122,9 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
       const actor = await withActor()
 
       if (method === 'GET' && !section) {
+        if (url.searchParams.get('detail') === 'compact') {
+          return json(200, { ...(await services.problems.getCompactState(problemId)), viewer: actor })
+        }
         return json(200, { ...(await services.problems.getState(problemId)), viewer: actor })
       }
       if (method === 'GET' && section === 'updates') {
@@ -124,6 +148,22 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
           contributions: await services.problems.getMyContributions(problemId, actor),
         })
       }
+      if (method === 'GET' && section === 'orchestration') {
+        return json(200, await services.orchestration.get(problemId))
+      }
+      if (method === 'POST' && section === 'orchestration') {
+        const body = await readJson(request)
+        const reason = optionalStr(body.reason, 'reason')
+        const orchestration = await services.orchestration.setMode(actor, {
+          problemId,
+          mode: body.mode,
+          ...(reason ? { reason } : {}),
+        })
+        return json(200, { orchestration, options: services.orchestration.options() })
+      }
+      if (method === 'GET' && section === 'context') {
+        return json(200, await services.orchestration.context(problemId, url.searchParams.get('draft') ?? ''))
+      }
       if (method === 'POST' && section === 'contributions') {
         const body = await readJson(request)
         const kind = optionalStr(body.kind, 'kind')
@@ -137,6 +177,7 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
           ...(source ? { source: source as ContributionSource } : {}),
           ...(sourceDetail ? { sourceDetail } : {}),
           ...(preparedBy ? { preparedBy } : {}),
+          ...(body.proposals !== undefined ? { proposals: body.proposals } : {}),
         })
         return json(201, result)
       }
@@ -160,11 +201,8 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
       return json(200, result)
     }
 
-    if (path === '/mcp' || path.startsWith('/mcp/')) {
-      return json(501, {
-        error: 'not_implemented',
-        message: 'The visual Cloudflare demo currently exposes the REST room only. MCP remains on the Node v0.3 runtime.',
-      })
+    if (path === '/mcp' && mcp) {
+      return await mcp(request)
     }
 
     return json(404, { error: 'not_found', message: `No route for ${method} ${path}.` })

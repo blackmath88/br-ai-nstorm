@@ -7,13 +7,14 @@
  * They are now computed from the event log, so they are true by construction.
  */
 import type {
-  ConflictRecord, ContributionRecord, CurationProposal, ProblemRecord, ProblemState,
+  ConflictRecord, ContributionKind, ContributionRecord, ContributionSource, CurationProposal,
+  Endorsement, EvaluationRecord, ProblemRecord, ProblemState, RelationRecord,
 } from '../domain/types.js'
 import type { MemoryEvent } from '../domain/events.js'
 import { projectProblems } from '../domain/projections.js'
 import { openConflicts } from '../domain/conflicts.js'
 import type { ActorContext } from '../auth/actor-context.js'
-import { loadState, loadStateAndEvents, byTimeThenId, type ServiceDeps } from './support.js'
+import { loadState, loadStateAndEvents, byTimeThenId, withDefaultOrchestration, type ServiceDeps } from './support.js'
 
 export interface UpdateItem {
   eventId: string
@@ -42,6 +43,39 @@ export interface ProblemUpdates {
   thinkNext: string[]
 }
 
+/**
+ * A contribution without its body. Enough to see the shape of the problem and
+ * to decide which full texts are worth reading.
+ */
+export interface CompactContribution {
+  id: string
+  kind: ContributionKind
+  label: string
+  status: ContributionRecord['status']
+  authoredBy: string
+  preparedBy?: string
+  source: ContributionSource
+  endorsement: Endorsement
+  createdAt: string
+  /** Length of the omitted content, so a reader knows what a full read costs. */
+  contentLength: number
+}
+
+/**
+ * The cheap read for LLM clients. Labels and ids instead of full texts; only
+ * pending proposals; evaluations counted rather than listed. A participant's
+ * model reads this, then fetches the handful of full texts it needs.
+ */
+export interface CompactState {
+  detail: 'compact'
+  problem: ProblemRecord
+  contributions: CompactContribution[]
+  relations: RelationRecord[]
+  conflicts: ConflictRecord[]
+  pendingProposals: CurationProposal[]
+  evaluationCounts: Record<string, Partial<Record<EvaluationRecord['stance'], number>>>
+}
+
 export interface ProblemService {
   list(): Promise<ProblemRecord[]>
   getState(problemId: string): Promise<ProblemState>
@@ -49,6 +83,39 @@ export interface ProblemService {
   getConflicts(problemId: string): Promise<{ open: ConflictRecord[]; all: ConflictRecord[] }>
   getUpdates(problemId: string, actor: ActorContext, since?: string): Promise<ProblemUpdates>
   getMyContributions(problemId: string, actor: ActorContext): Promise<ContributionRecord[]>
+  getCompactState(problemId: string): Promise<CompactState>
+  getContributions(problemId: string, ids: string[]): Promise<{ contributions: ContributionRecord[]; missing: string[] }>
+}
+
+/** Upper bound on full texts fetched in one call, so "on demand" stays bounded. */
+export const MAX_CONTRIBUTIONS_PER_FETCH = 20
+
+export function compactState(state: ProblemState): CompactState {
+  const evaluationCounts: CompactState['evaluationCounts'] = {}
+  for (const evaluation of state.evaluations) {
+    const counts = (evaluationCounts[evaluation.targetId] ??= {})
+    counts[evaluation.stance] = (counts[evaluation.stance] ?? 0) + 1
+  }
+  return {
+    detail: 'compact',
+    problem: state.problem,
+    contributions: state.contributions.map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      label: c.label,
+      status: c.status,
+      authoredBy: c.provenance.authoredBy,
+      ...(c.provenance.preparedBy ? { preparedBy: c.provenance.preparedBy } : {}),
+      source: c.provenance.source,
+      endorsement: c.provenance.endorsement,
+      createdAt: c.createdAt,
+      contentLength: c.content.length,
+    })),
+    relations: state.relations,
+    conflicts: state.conflicts,
+    pendingProposals: state.proposals.filter((p) => p.status === 'pending'),
+    evaluationCounts,
+  }
 }
 
 const labelOf = (state: ProblemState, id: string): string =>
@@ -87,6 +154,11 @@ function describe(event: MemoryEvent, state: ProblemState): { title: string; det
       return { title: 'Conflict proposal rejected', detail: 'A proposed conflict was declined on review.' }
     case 'EvaluationAdded':
       return { title: 'Evaluation added', detail: `${String(p.stance)} · ${labelOf(state, String(p.targetId))}` }
+    case 'OrchestrationModeChanged':
+      return {
+        title: 'Orchestration changed',
+        detail: `${String(p.from)} → ${String(p.to)}${p.reason ? ` · ${String(p.reason)}` : ''}`,
+      }
     default:
       return { title: event.eventType, detail: '' }
   }
@@ -95,7 +167,7 @@ function describe(event: MemoryEvent, state: ProblemState): { title: string; det
 export function createProblemService(deps: ServiceDeps): ProblemService {
   return {
     async list() {
-      return projectProblems(await deps.repository.read())
+      return projectProblems(await deps.repository.read()).map((problem) => withDefaultOrchestration(deps, problem))
     },
 
     async getState(problemId) {
@@ -117,6 +189,20 @@ export function createProblemService(deps: ServiceDeps): ProblemService {
       return state.contributions.filter((c) => c.provenance.authoredBy === actor.actorId)
     },
 
+    async getCompactState(problemId) {
+      return compactState(await loadState(deps, problemId))
+    },
+
+    async getContributions(problemId, ids) {
+      const state = await loadState(deps, problemId)
+      const wanted = [...new Set(ids)].slice(0, MAX_CONTRIBUTIONS_PER_FETCH)
+      const byId = new Map(state.contributions.map((c) => [c.id, c]))
+      return {
+        contributions: wanted.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])),
+        missing: wanted.filter((id) => !byId.has(id)),
+      }
+    },
+
     async getUpdates(problemId, actor, since) {
       const { state, events } = await loadStateAndEvents(deps, problemId)
       const threshold = since ? Date.parse(since) : Number.NEGATIVE_INFINITY
@@ -124,8 +210,10 @@ export function createProblemService(deps: ServiceDeps): ProblemService {
 
       const updates: UpdateItem[] = sorted
         .filter((event) => (Number.isNaN(threshold) ? true : Date.parse(event.timestamp) > threshold))
-        // "Since you were here" is about what other people did.
+        // "Since you were here" is about what other people did — including
+        // what other people's agents did, but not what your own agent did.
         .filter((event) => event.actorId !== actor.actorId)
+        .filter((event) => (event.payload as { onBehalfOf?: unknown }).onBehalfOf !== actor.actorId)
         .map((event) => ({
           eventId: event.id,
           timestamp: event.timestamp,

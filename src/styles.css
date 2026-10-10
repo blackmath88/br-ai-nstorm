@@ -102,3 +102,16 @@ textarea{width:100%;min-height:94px;resize:vertical;border:1px solid var(--line)
 .modal-status{align-self:center;font-size:11px;color:var(--muted);font-weight:700}
 textarea:disabled{opacity:.6}
 .button:disabled{opacity:.5;cursor:default}
+
+/* ---- v0.4: orchestration modes ------------------------------------------ */
+.orchestration{border:1px solid var(--line);border-radius:14px;background:var(--paper);padding:12px 13px;display:grid;gap:9px}
+.orchestration-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.orchestration-head .section-kicker{margin:0}
+.segmented{display:flex;flex-wrap:wrap;gap:4px;padding:3px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.6);width:max-content;max-width:100%}
+.segmented button{border:0;background:transparent;color:var(--ink);font-size:11.5px;font-weight:800;padding:7px 11px;border-radius:9px;cursor:pointer}
+.segmented button.active{background:var(--ink);color:#fff}
+.segmented button:disabled:not(.active){opacity:.5;cursor:default}
+.segmented .unavailable{font-weight:600;font-size:10px}
+.orchestration-summary{margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
+.orchestration-reason{border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 9px;font-size:11px;color:var(--ink);outline:none}
+.orchestration-reason:focus{border-color:#91aca8}

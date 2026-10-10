@@ -10,7 +10,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   api, ApiError,
   type ActorContext, type ConflictRecord, type ContributionKind, type CurationProposal,
-  type MemoryEvent, type Participant, type ProblemRecord, type ProblemState, type ProblemUpdates,
+  type MemoryEvent, type OrchestrationMode, type OrchestrationOption, type Participant,
+  type ParticipantProposalInput, type ProblemRecord, type ProblemState, type ProblemUpdates,
 } from '../lib/api'
 
 const SESSION_KEY = 'br-ai-nstorm.session'
@@ -23,6 +24,7 @@ export interface RoomData {
   conflicts: { open: ConflictRecord[]; all: ConflictRecord[] }
   proposals: CurationProposal[]
   events: MemoryEvent[]
+  orchestrationOptions: OrchestrationOption[]
 }
 
 export interface Room {
@@ -42,8 +44,18 @@ export interface Room {
   data: RoomData | null
   refresh: () => Promise<void>
 
-  addContribution: (input: { content: string; kind?: ContributionKind; preparedBy?: string; sourceDetail?: string; source?: string }) => Promise<void>
+  addContribution: (input: {
+    content: string
+    kind?: ContributionKind
+    preparedBy?: string
+    sourceDetail?: string
+    source?: string
+    proposals?: ParticipantProposalInput[]
+  }) => Promise<void>
   review: (proposalId: string, accept: boolean, reason?: string) => Promise<void>
+  setOrchestration: (mode: OrchestrationMode, reason?: string) => Promise<void>
+  /** The session token, for reads that are not part of the room snapshot (e.g. contribution context). */
+  token: string | null
 
   /** Last mutation's outcome, for a short confirmation line in the UI. */
   notice: string | null
@@ -96,15 +108,23 @@ export function useRoom(): Room {
       const seq = ++requestId.current
       setBusy(true)
       try {
-        const [state, updates, conflicts, curation, events] = await Promise.all([
+        const [state, updates, conflicts, curation, events, orchestration] = await Promise.all([
           api.state(token, id),
           api.updates(token, id),
           api.conflicts(token, id),
           api.curation(token, id),
           api.events(token, id),
+          api.orchestration(token, id),
         ])
         if (seq !== requestId.current) return
-        setData({ state, updates, conflicts, proposals: curation.proposals, events: events.events })
+        setData({
+          state,
+          updates,
+          conflicts,
+          proposals: curation.proposals,
+          events: events.events,
+          orchestrationOptions: orchestration.options,
+        })
         setError(null)
         setPhase('ready')
       } catch (err) {
@@ -203,10 +223,12 @@ export function useRoom(): Room {
       try {
         const result = await api.addContribution(session.token, problemId, input as never)
         const n = result.proposals.length
+        const dropped = result.dropped.length
         setNotice(
-          n === 0
+          (n === 0
             ? 'Contribution recorded. No curation proposals.'
-            : `Contribution recorded. ${n} proposal${n === 1 ? '' : 's'} added to the review queue.`,
+            : `Contribution recorded. ${n} proposal${n === 1 ? '' : 's'} added to the review queue.`) +
+            (dropped > 0 ? ` ${dropped} AI proposal${dropped === 1 ? ' was' : 's were'} not accepted: ${result.dropped[0].reason}` : ''),
         )
         setError(null)
         await loadProblem(session.token, problemId)
@@ -243,6 +265,24 @@ export function useRoom(): Room {
     [loadProblem, problemId, session],
   )
 
+  const setOrchestration: Room['setOrchestration'] = useCallback(
+    async (mode, reason) => {
+      if (!session || !problemId) return
+      setBusy(true)
+      try {
+        await api.setOrchestration(session.token, problemId, mode, reason)
+        setNotice(`Orchestration switched to “${mode}”. The change is recorded in history.`)
+        setError(null)
+        await loadProblem(session.token, problemId)
+      } catch (err) {
+        setError(message(err))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [loadProblem, problemId, session],
+  )
+
   return {
     phase,
     error,
@@ -257,6 +297,8 @@ export function useRoom(): Room {
     refresh,
     addContribution,
     review,
+    setOrchestration,
+    token: session?.token ?? null,
     notice,
     dismissNotice: () => setNotice(null),
   }

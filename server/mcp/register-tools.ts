@@ -26,7 +26,10 @@ import * as z from 'zod/v4'
 import type { Services } from '../container.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { isDomainError } from '../domain/errors.js'
-import { CONTRIBUTION_KINDS } from '../domain/types.js'
+import { CONFLICT_KINDS, CONTRIBUTION_KINDS, RELATION_KINDS } from '../domain/types.js'
+import { MAX_CONTRIBUTIONS_PER_FETCH } from '../application/problem-service.js'
+import { PARTICIPANT_PROPOSAL_LIMIT } from '../domain/policies.js'
+import { PARTICIPANT_PROPOSAL_KINDS } from '../curation/participant.js'
 import { CONFLICT_KIND_MEANING } from '../domain/conflicts.js'
 
 type ToolResult = {
@@ -78,7 +81,14 @@ const mutating = { readOnlyHint: false, idempotentHint: false, openWorldHint: fa
  * point: an MCP client cannot claim to be someone by putting a name in a tool
  * call. Identity was resolved before this server instance existed.
  */
-export function registerTools(server: McpServer, services: Services, actor: ActorContext): void {
+/**
+ * The slice of `Services` the tools use. Narrower than the full container on
+ * purpose: the Cloudflare Worker builds its own service set (different auth
+ * and persistence adapters) and must be able to serve the same tools.
+ */
+export type ToolServices = Pick<Services, 'problems' | 'contributions' | 'curation' | 'orchestration'>
+
+export function registerTools(server: McpServer, services: ToolServices, actor: ActorContext): void {
   server.registerTool(
     'list_problems',
     {
@@ -98,7 +108,8 @@ export function registerTools(server: McpServer, services: Services, actor: Acto
       description:
         'Canonical shared state for one problem: contributions with full provenance, accepted relations, ' +
         'conflicts (accepted disagreements, not errors), pending curation proposals and evaluations. ' +
-        'Inclusion in this state means someone said it — never that it is true.',
+        'Inclusion in this state means someone said it — never that it is true. This is the expensive read: ' +
+        'it grows with the problem. Prefer get_problem_overview plus get_contributions.',
       inputSchema: problemIdSchema,
       outputSchema: z.object({
         problem: jsonish,
@@ -116,6 +127,77 @@ export function registerTools(server: McpServer, services: Services, actor: Acto
         ...(await services.problems.getState(problemId)),
         conflictTypes: CONFLICT_KIND_MEANING,
       })),
+  )
+
+  server.registerTool(
+    'get_problem_overview',
+    {
+      title: 'Get problem overview',
+      description:
+        'Start here. The cheap read of one problem: every contribution as id, kind, label and provenance ' +
+        'without its full text, plus relations, conflicts, pending proposals and evaluation counts. Fetch the ' +
+        'few full texts you need with get_contributions instead of reading get_problem_state.',
+      inputSchema: problemIdSchema,
+      outputSchema: z.object({
+        detail: z.literal('compact'),
+        problem: jsonish,
+        contributions: z.array(jsonish),
+        relations: z.array(jsonish),
+        conflicts: z.array(jsonish),
+        pendingProposals: z.array(jsonish),
+        evaluationCounts: z.record(z.string(), jsonish),
+      }),
+      annotations: readOnly,
+    },
+    async ({ problemId }) =>
+      guard(async () => ({ ...(await services.problems.getCompactState(problemId)) })),
+  )
+
+  server.registerTool(
+    'get_contributions',
+    {
+      title: 'Get contributions',
+      description:
+        `Full text and provenance for specific contributions, by id (at most ${MAX_CONTRIBUTIONS_PER_FETCH} per call). ` +
+        'Use after get_problem_overview to read only what matters.',
+      inputSchema: z.object({
+        problemId: z.string().min(1),
+        ids: z.array(z.string().min(1)).min(1).max(MAX_CONTRIBUTIONS_PER_FETCH),
+      }),
+      outputSchema: z.object({ contributions: z.array(jsonish), missing: z.array(z.string()) }),
+      annotations: readOnly,
+    },
+    async ({ problemId, ids }) =>
+      guard(async () => ({ ...(await services.problems.getContributions(problemId, ids)) })),
+  )
+
+  server.registerTool(
+    'get_contribution_context',
+    {
+      title: 'Get contribution context',
+      description:
+        'Call before propose_contribution. Returns the problem’s orchestration mode, what is expected of you ' +
+        'in that mode, and a bounded set of existing contributions ranked against your draft. In ' +
+        '"participant" mode you do the curation: compare the draft with these candidates and attach ' +
+        'proposals to propose_contribution. In "deterministic" mode attach none.',
+      inputSchema: z.object({
+        problemId: z.string().min(1),
+        draft: z.string().max(8000).optional().describe('The contribution you are about to make.'),
+      }),
+      outputSchema: z.object({
+        problem: jsonish,
+        orchestration: jsonish,
+        instructions: z.array(z.string()),
+        candidates: z.array(jsonish),
+        vocabulary: jsonish,
+        limits: jsonish,
+      }),
+      annotations: readOnly,
+    },
+    async ({ problemId, draft }) =>
+      guard(async () => ({
+        ...(await services.orchestration.context(problemId, draft ?? '')),
+      }) as unknown as Record<string, unknown>),
   )
 
   server.registerTool(
@@ -189,22 +271,39 @@ export function registerTools(server: McpServer, services: Services, actor: Acto
         'Add one bounded, attributed contribution to shared memory on behalf of the authenticated participant. ' +
         'The server records it deterministically, then runs conservative curation that can only create review ' +
         'proposals. Set preparedBy when a model drafted the text, so "AI prepared" is never recorded as ' +
-        '"human authored".',
+        '"human authored". In "participant" orchestration, attach your own proposals (see ' +
+        'get_contribution_context); each is recorded as made by your model on your participant’s behalf, and ' +
+        'only another participant can accept it. Rejected proposals come back in `dropped` with a reason.',
       inputSchema: z.object({
         problemId: z.string().min(1),
         content: z.string().min(1).max(8000),
         kind: z.enum(CONTRIBUTION_KINDS as [string, ...string[]]).optional(),
         preparedBy: z.string().max(200).optional().describe('Model or agent that drafted this, e.g. "ai:claude".'),
         sourceDetail: z.string().max(1000).optional().describe('Citation or origin note.'),
+        proposals: z
+          .array(
+            z.object({
+              kind: z.enum(PARTICIPANT_PROPOSAL_KINDS),
+              targetId: z.string().min(1).describe('id of a candidate from get_contribution_context'),
+              relationKind: z.enum(RELATION_KINDS.filter((k) => k !== 'supersedes') as [string, ...string[]]).optional(),
+              conflictKind: z.enum(CONFLICT_KINDS as [string, ...string[]]).optional(),
+              reason: z.string().min(1).max(600),
+              confidence: z.number().min(0).max(1).optional(),
+            }),
+          )
+          .max(PARTICIPANT_PROPOSAL_LIMIT)
+          .optional()
+          .describe('Participant orchestration: how this contribution relates to existing ones, in your judgement.'),
       }),
       outputSchema: z.object({
         contribution: jsonish,
         proposals: z.array(jsonish),
         curator: jsonish,
+        dropped: z.array(jsonish),
       }),
       annotations: mutating,
     },
-    async ({ problemId, content, kind, preparedBy, sourceDetail }) =>
+    async ({ problemId, content, kind, preparedBy, sourceDetail, proposals }) =>
       guard(async () => ({
         ...(await services.contributions.add(actor, {
           problemId,
@@ -213,8 +312,9 @@ export function registerTools(server: McpServer, services: Services, actor: Acto
           source: 'mcp',
           ...(preparedBy ? { preparedBy } : {}),
           ...(sourceDetail ? { sourceDetail } : {}),
+          ...(proposals ? { proposals } : {}),
         })),
-      })),
+      }) as unknown as Record<string, unknown>),
   )
 
   server.registerTool(
@@ -254,6 +354,9 @@ export function registerTools(server: McpServer, services: Services, actor: Acto
 
 export const TOOL_NAMES = [
   'list_problems',
+  'get_problem_overview',
+  'get_contributions',
+  'get_contribution_context',
   'get_problem_state',
   'get_problem_updates',
   'get_my_contributions',

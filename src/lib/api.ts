@@ -10,9 +10,12 @@
  * participant name as proof of who it is; the server resolves the token.
  */
 import type {
-  ConflictRecord, ContributionKind, ContributionRecord, CurationProposal,
-  Participant, ProblemRecord, ProblemState, RelationRecord,
+  ConflictRecord, ContributionKind, ContributionRecord, CurationProposal, OrchestrationMode,
+  OrchestrationSetting, Participant, ProblemRecord, ProblemState, RelationRecord,
 } from '../../server/domain/types'
+import type { OrchestrationOption, ContributionContext } from '../../server/application/orchestration-service'
+import type { AddContributionResult } from '../../server/application/contribution-service'
+import type { ParticipantProposalInput } from '../../server/curation/participant'
 import type { MemoryEvent } from '../../server/domain/events'
 import type { ActorContext } from '../../server/auth/actor-context'
 import type { ProblemUpdates } from '../../server/application/problem-service'
@@ -20,6 +23,8 @@ import type { ProblemUpdates } from '../../server/application/problem-service'
 export type {
   ConflictRecord, ContributionKind, ContributionRecord, CurationProposal,
   Participant, ProblemRecord, ProblemState, RelationRecord, MemoryEvent, ActorContext, ProblemUpdates,
+  OrchestrationMode, OrchestrationSetting, OrchestrationOption, ContributionContext, AddContributionResult,
+  ParticipantProposalInput,
 }
 
 /** Same-origin by default; the Vite dev server proxies /api to the backend. */
@@ -100,12 +105,37 @@ export const api = {
   events: (token: string, problemId: string) =>
     request<{ events: MemoryEvent[] }>(`/api/problems/${encodeURIComponent(problemId)}/events`, { token }),
 
+  orchestration: (token: string, problemId: string) =>
+    request<{ orchestration: OrchestrationSetting; options: OrchestrationOption[] }>(
+      `/api/problems/${encodeURIComponent(problemId)}/orchestration`,
+      { token },
+    ),
+
+  setOrchestration: (token: string, problemId: string, mode: OrchestrationMode, reason?: string) =>
+    request<{ orchestration: OrchestrationSetting; options: OrchestrationOption[] }>(
+      `/api/problems/${encodeURIComponent(problemId)}/orchestration`,
+      { token, method: 'POST', body: { mode, ...(reason ? { reason } : {}) } },
+    ),
+
+  context: (token: string, problemId: string, draft = '') =>
+    request<ContributionContext>(
+      `/api/problems/${encodeURIComponent(problemId)}/context${draft ? `?draft=${encodeURIComponent(draft.slice(0, 1500))}` : ''}`,
+      { token },
+    ),
+
   addContribution: (
     token: string,
     problemId: string,
-    body: { content: string; kind?: ContributionKind; source?: string; sourceDetail?: string; preparedBy?: string },
+    body: {
+      content: string
+      kind?: ContributionKind
+      source?: string
+      sourceDetail?: string
+      preparedBy?: string
+      proposals?: ParticipantProposalInput[]
+    },
   ) =>
-    request<{ contribution: ContributionRecord; proposals: CurationProposal[]; curator: { deterministic: number; ai: number; aiEnabled: boolean } }>(
+    request<AddContributionResult>(
       `/api/problems/${encodeURIComponent(problemId)}/contributions`,
       { token, method: 'POST', body },
     ),

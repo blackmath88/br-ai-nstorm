@@ -23,11 +23,18 @@ export interface DurableEventRepository extends EventRepository {
  * provides locally.
  */
 export function createDurableEventRepository(namespace: EventLogNamespace): DurableEventRepository {
-  const log = namespace.getByName('canonical-memory')
+  // The stub is resolved per operation, never cached. Services are built once
+  // per isolate, and workerd refuses to let an I/O object created while
+  // serving one request be used by another ("Cannot perform I/O on behalf of
+  // a different request"). Getting a stub is cheap; reusing one breaks every
+  // request after the first.
+  const log = () => namespace.getByName(LOG_NAME)
 
   return {
-    append: (events) => log.append(events),
-    appendIfEmpty: (events) => log.appendIfEmpty(events),
-    read: (problemId) => log.read(problemId),
+    append: (events) => log().append(events),
+    appendIfEmpty: (events) => log().appendIfEmpty(events),
+    read: (problemId) => log().read(problemId),
   }
 }
+
+const LOG_NAME = 'canonical-memory'
