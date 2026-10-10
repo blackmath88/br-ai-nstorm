@@ -4,6 +4,7 @@ import { createContributionService } from '../server/application/contribution-se
 import { createCurationService } from '../server/application/curation-service.js'
 import { createOrchestrationService } from '../server/application/orchestration-service.js'
 import { createImportService } from '../server/application/import-service.js'
+import { createReportService } from '../server/application/report-service.js'
 import { nullCurator } from '../server/curation/ai-curator.js'
 import { ensureSeedData } from '../server/persistence/seed.js'
 import type { EventRepository } from '../server/persistence/repository.js'
@@ -70,6 +71,7 @@ export async function buildWorkerServices(env: WorkerEnv) {
     curation: createCurationService(deps),
     orchestration: createOrchestrationService(deps),
     imports: createImportService(deps),
+    reports: createReportService(deps),
     auth: createDemoAuth(),
     curator: nullCurator,
     repository,

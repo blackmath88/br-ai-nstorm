@@ -28,7 +28,7 @@ import type { ActorContext } from '../auth/actor-context.js'
 import { isDomainError } from '../domain/errors.js'
 import { CONFLICT_KINDS, CONTRIBUTION_KINDS, RELATION_KINDS } from '../domain/types.js'
 import { MAX_CONTRIBUTIONS_PER_FETCH } from '../application/problem-service.js'
-import { PARTICIPANT_PROPOSAL_LIMIT } from '../domain/policies.js'
+import { EVALUATION_STANCES, PARTICIPANT_PROPOSAL_LIMIT } from '../domain/policies.js'
 import { PARTICIPANT_PROPOSAL_KINDS } from '../curation/participant.js'
 import { CONFLICT_KIND_MEANING } from '../domain/conflicts.js'
 
@@ -86,7 +86,7 @@ const mutating = { readOnlyHint: false, idempotentHint: false, openWorldHint: fa
  * purpose: the Cloudflare Worker builds its own service set (different auth
  * and persistence adapters) and must be able to serve the same tools.
  */
-export type ToolServices = Pick<Services, 'problems' | 'contributions' | 'curation' | 'orchestration'>
+export type ToolServices = Pick<Services, 'problems' | 'contributions' | 'curation' | 'orchestration' | 'reports'>
 
 export function registerTools(server: McpServer, services: ToolServices, actor: ActorContext): void {
   server.registerTool(
@@ -318,6 +318,61 @@ export function registerTools(server: McpServer, services: ToolServices, actor: 
   )
 
   server.registerTool(
+    'evaluate_contribution',
+    {
+      title: 'Evaluate a contribution',
+      description:
+        'Record this participant’s standing judgement of a contribution: "useful", "doubtful" or ' +
+        '"needs_evidence", with an optional note. A new judgement replaces their previous one on the same ' +
+        'contribution. Judgements are attributed and never averaged into a verdict; "needs_evidence" and ' +
+        'repeated doubt feed the problem’s think-next prompts. Only record what the participant actually thinks.',
+      inputSchema: z.object({
+        problemId: z.string().min(1),
+        targetId: z.string().min(1),
+        stance: z.enum(EVALUATION_STANCES),
+        note: z.string().max(1000).optional(),
+      }),
+      outputSchema: z.object({ evaluation: jsonish }),
+      annotations: mutating,
+    },
+    async ({ problemId, targetId, stance, note }) =>
+      guard(async () => ({
+        evaluation: (await services.contributions.evaluate(actor, {
+          problemId,
+          targetId,
+          stance,
+          ...(note ? { note } : {}),
+        })) as unknown as Record<string, unknown>,
+      })),
+  )
+
+  server.registerTool(
+    'get_field_report',
+    {
+      title: 'Get field report',
+      description:
+        'Curation quality and participation for one problem: for each origin of proposals (participant AI, ' +
+        'server AI, lexical matching) and each orchestration mode, how many were proposed, accepted and ' +
+        'rejected and how long review took; who contributed through which channel; conflict and evaluation ' +
+        'totals. For facilitators of a field test. Derived from the log; changes nothing.',
+      inputSchema: problemIdSchema,
+      outputSchema: z.object({
+        problemId: z.string(),
+        title: z.string(),
+        orchestration: jsonish,
+        proposals: jsonish,
+        participants: z.array(jsonish),
+        conflicts: jsonish,
+        evaluations: jsonish,
+        contributions: jsonish,
+      }),
+      annotations: readOnly,
+    },
+    async ({ problemId }) =>
+      guard(async () => ({ ...(await services.reports.fieldReport(problemId)) }) as unknown as Record<string, unknown>),
+  )
+
+  server.registerTool(
     'review_curation_proposal',
     {
       title: 'Review a curation proposal',
@@ -362,5 +417,7 @@ export const TOOL_NAMES = [
   'get_my_contributions',
   'get_conflicts',
   'propose_contribution',
+  'evaluate_contribution',
+  'get_field_report',
   'review_curation_proposal',
 ] as const

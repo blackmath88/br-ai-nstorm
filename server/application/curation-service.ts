@@ -8,7 +8,7 @@
 import { makeEvent } from '../domain/events.js'
 import type { ConflictRecord, CurationProposal, RelationRecord } from '../domain/types.js'
 import { notFound, invalid } from '../domain/errors.js'
-import { assertMayReview } from '../domain/policies.js'
+import { assertMayResolveConflict, assertMayReview } from '../domain/policies.js'
 import { assertAcceptableAsConflict, sameConflictPair } from '../domain/conflicts.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { loadState, withFreshState, type ServiceDeps } from './support.js'
@@ -23,6 +23,11 @@ export interface CurationService {
   list(problemId: string, options?: { status?: CurationProposal['status'] }): Promise<CurationProposal[]>
   accept(actor: ActorContext, input: { problemId: string; proposalId: string }): Promise<ReviewResult>
   reject(actor: ActorContext, input: { problemId: string; proposalId: string; reason?: string }): Promise<ReviewResult>
+  /** Close an accepted conflict — resolved, or dismissed as not a real conflict — with a note. */
+  resolveConflict(
+    actor: ActorContext,
+    input: { problemId: string; conflictId: string; action: unknown; note: unknown },
+  ): Promise<ConflictRecord>
 }
 
 export function createCurationService(deps: ServiceDeps): CurationService {
@@ -140,5 +145,28 @@ export function createCurationService(deps: ServiceDeps): CurationService {
         proposal: { ...proposal, status: 'rejected', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
       }
     }),
+
+    resolveConflict: (actor, input) =>
+      withFreshState(deps, async (ifVersion) => {
+        const state = await loadState(deps, input.problemId)
+        const conflict = state.conflicts.find((c) => c.id === input.conflictId)
+        if (!conflict) throw notFound('Conflict', input.conflictId)
+        const { action, note } = assertMayResolveConflict(actor, conflict, input)
+        const event = makeEvent(deps, {
+          problemId: input.problemId,
+          actorId: actor.actorId,
+          objectId: conflict.id,
+          eventType: 'ConflictResolved',
+          payload: { action, note },
+        })
+        await deps.repository.append([event], { ifVersion })
+        return {
+          ...conflict,
+          status: action === 'resolve' ? 'resolved' : 'dismissed',
+          resolvedBy: actor.actorId,
+          resolvedAt: event.timestamp,
+          resolutionNote: note,
+        }
+      }),
   }
 }

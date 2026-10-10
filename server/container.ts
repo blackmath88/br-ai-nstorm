@@ -16,6 +16,7 @@ import { createContributionService, type ContributionService } from './applicati
 import { createCurationService, type CurationService } from './application/curation-service.js'
 import { createOrchestrationService, type OrchestrationService } from './application/orchestration-service.js'
 import { createImportService, type ImportService } from './application/import-service.js'
+import { createReportService, type ReportService } from './application/report-service.js'
 import { createPrototypeAuth, type PrototypeAuth } from './auth/prototype-auth.js'
 import type { ServiceDeps } from './application/support.js'
 import type { OrchestrationMode } from './domain/types.js'
@@ -27,6 +28,7 @@ export interface Services {
   curation: CurationService
   orchestration: OrchestrationService
   imports: ImportService
+  reports: ReportService
   auth: PrototypeAuth
   curator: Curator
   repository: EventRepository
@@ -76,6 +78,7 @@ export async function buildServices(options: BuildOptions = {}): Promise<Service
     curation: createCurationService(deps),
     orchestration: createOrchestrationService(deps),
     imports: createImportService(deps),
+    reports: createReportService(deps),
     auth,
     curator,
     repository,

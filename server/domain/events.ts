@@ -29,12 +29,14 @@ export type EventType =
   | 'ContributionSuperseded'
   | 'VisibilityChanged'
   | 'OrchestrationModeChanged'
+  | 'ConflictResolved'
 
 export const EVENT_TYPES: EventType[] = [
   'ProblemCreated', 'ContributionAdded', 'ContributionEdited',
   'RelationProposed', 'RelationAccepted', 'RelationRejected',
   'ConflictProposed', 'ConflictAccepted', 'ConflictRejected',
   'EvaluationAdded', 'ContributionSuperseded', 'VisibilityChanged', 'OrchestrationModeChanged',
+  'ConflictResolved',
 ]
 
 export interface MemoryEvent<P = Record<string, unknown>> {
@@ -177,6 +179,16 @@ export interface VisibilityChangedPayload {
   from: Visibility
   to: Visibility
   reason?: string
+}
+
+/**
+ * Closing a conflict. `resolve` means the disagreement was settled (and the
+ * note says how); `dismiss` means it was not a real conflict after all. Either
+ * way the conflict record stays, with who closed it and why.
+ */
+export interface ConflictResolvedPayload {
+  action: 'resolve' | 'dismiss'
+  note: string
 }
 
 export interface OrchestrationModeChangedPayload {
