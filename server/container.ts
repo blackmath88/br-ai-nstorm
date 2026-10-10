@@ -14,6 +14,7 @@ import { createAiCurator, nullCurator, type Curator } from './curation/ai-curato
 import { createProblemService, type ProblemService } from './application/problem-service.js'
 import { createContributionService, type ContributionService } from './application/contribution-service.js'
 import { createCurationService, type CurationService } from './application/curation-service.js'
+import { createOrchestrationService, type OrchestrationService } from './application/orchestration-service.js'
 import { createPrototypeAuth, type PrototypeAuth } from './auth/prototype-auth.js'
 import type { ServiceDeps } from './application/support.js'
 
@@ -21,6 +22,7 @@ export interface Services {
   problems: ProblemService
   contributions: ContributionService
   curation: CurationService
+  orchestration: OrchestrationService
   auth: PrototypeAuth
   curator: Curator
   repository: EventRepository
@@ -61,6 +63,7 @@ export async function buildServices(options: BuildOptions = {}): Promise<Service
     problems: createProblemService(deps),
     contributions: createContributionService(deps),
     curation: createCurationService(deps),
+    orchestration: createOrchestrationService(deps),
     auth,
     curator,
     repository,

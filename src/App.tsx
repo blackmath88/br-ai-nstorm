@@ -19,6 +19,7 @@ import { SideRail } from './components/SideRail'
 import { ApertureModal } from './components/ApertureModal'
 import { ParticipantSwitcher } from './components/ParticipantSwitcher'
 import { createContextPackage, validateContributionPackage } from './lib/aperture'
+import { api } from './lib/api'
 
 type ViewMode = 'state' | 'map' | 'timeline' | 'curation'
 type ModalMode = 'export' | 'import' | null
@@ -60,9 +61,14 @@ export default function App() {
     return parts.join(' · ')
   }, [data, pendingCount])
 
-  const openExport = (privateDraft = '') => {
+  const openExport = async (privateDraft = '') => {
     if (!data || !room.actor) return
-    setModalValue(JSON.stringify(createContextPackage(data.state, room.actor, privateDraft), null, 2))
+    // The bounded candidate set is what lets the external model act as curator
+    // in participant mode. If it cannot be fetched, export without it.
+    const context = room.token
+      ? await api.context(room.token, data.state.problem.id, privateDraft).catch(() => undefined)
+      : undefined
+    setModalValue(JSON.stringify(createContextPackage(data.state, room.actor, privateDraft, context), null, 2))
     setImportError(null)
     setModalMode('export')
   }
@@ -109,6 +115,7 @@ export default function App() {
           source: 'external_llm',
           preparedBy: 'ai:external-llm',
           sourceDetail: item.relationTo?.length ? `relates to ${item.relationTo.join(', ')}` : undefined,
+          ...(item.proposals?.length ? { proposals: item.proposals } : {}),
         })
       }
       setModalMode(null)
@@ -138,7 +145,7 @@ export default function App() {
           <button className="button" onClick={() => void room.refresh()} disabled={room.busy || !data}>
             <RefreshCw size={15} /> {room.busy ? 'Refreshing…' : 'Refresh'}
           </button>
-          <button className="button aperture" onClick={() => openExport('')} disabled={!data}>
+          <button className="button aperture" onClick={() => void openExport('')} disabled={!data}>
             <BrainCircuit size={16} /> Think with my AI ↗
           </button>
           <button className="button" onClick={openImport} disabled={!data}>
@@ -245,6 +252,10 @@ export default function App() {
                   contributions={data.state.contributions}
                   onReview={(proposalId, accept) => void room.review(proposalId, accept)}
                   busy={room.busy}
+                  actorId={room.actor?.actorId ?? null}
+                  orchestration={problem.orchestration}
+                  orchestrationOptions={data.orchestrationOptions}
+                  onSetOrchestration={(mode, reason) => void room.setOrchestration(mode, reason)}
                 />
               )}
             </div>
@@ -256,7 +267,7 @@ export default function App() {
             draft={draft}
             setDraft={setDraft}
             onAdd={() => void handleAdd()}
-            onThinkPrivate={() => openExport(draft)}
+            onThinkPrivate={() => void openExport(draft)}
             busy={room.busy}
             canContribute={Boolean(room.actor)}
           />

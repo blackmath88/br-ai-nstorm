@@ -93,6 +93,7 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
           aiCurator: services.curator.enabled,
           curator: services.curator.name,
           prototypeAuth: options.enablePrototypeAuth,
+          orchestration: services.orchestration.options(),
         })
       }
 
@@ -125,6 +126,9 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
         const actor = await withActor(req)
 
         if (method === 'GET' && !section) {
+          if (url.searchParams.get('detail') === 'compact') {
+            return send(res, 200, { ...(await services.problems.getCompactState(problemId)), viewer: actor })
+          }
           return send(res, 200, {
             ...(await services.problems.getState(problemId)),
             viewer: actor,
@@ -151,6 +155,22 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
             contributions: await services.problems.getMyContributions(problemId, actor),
           })
         }
+        if (method === 'GET' && section === 'orchestration') {
+          return send(res, 200, await services.orchestration.get(problemId))
+        }
+        if (method === 'POST' && section === 'orchestration') {
+          const body = await readJson(req)
+          const reason = optionalStr(body.reason, 'reason')
+          const orchestration = await services.orchestration.setMode(actor, {
+            problemId,
+            mode: body.mode,
+            ...(reason ? { reason } : {}),
+          })
+          return send(res, 200, { orchestration, options: services.orchestration.options() })
+        }
+        if (method === 'GET' && section === 'context') {
+          return send(res, 200, await services.orchestration.context(problemId, url.searchParams.get('draft') ?? ''))
+        }
         if (method === 'POST' && section === 'contributions') {
           const body = await readJson(req)
           const kind = optionalStr(body.kind, 'kind')
@@ -164,6 +184,7 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
             ...(source ? { source: source as ContributionSource } : {}),
             ...(sourceDetail ? { sourceDetail } : {}),
             ...(preparedBy ? { preparedBy } : {}),
+            ...(body.proposals !== undefined ? { proposals: body.proposals } : {}),
           })
           return send(res, 201, result)
         }

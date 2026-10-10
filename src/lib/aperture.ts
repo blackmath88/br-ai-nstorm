@@ -7,7 +7,9 @@
  * rather than a local mock, and the imported contributions are written through
  * the backend like any other contribution.
  */
-import type { ActorContext, ContributionKind, ProblemState } from './api'
+import type {
+  ActorContext, ContributionContext, ContributionKind, ParticipantProposalInput, ProblemState,
+} from './api'
 
 export interface ContributionPackage {
   $type: 'ai.bridgework.brainstorm.contributionPackage'
@@ -20,12 +22,37 @@ export interface ContributionPackage {
     confidence?: 'low' | 'medium' | 'high'
     relationTo?: string[]
     endorsement?: 'participant_review_required' | 'human_endorsed'
+    /** Participant orchestration: this model's judgement of how the item relates to existing ones. */
+    proposals?: ParticipantProposalInput[]
   }>
   privateProcessDisclosed: false
 }
 
-export function createContextPackage(state: ProblemState, actor: ActorContext, privateDraft = '') {
+/**
+ * The orchestration section of the context package. In `participant` mode the
+ * external model is the curator, so it gets the bounded candidate set and the
+ * proposal vocabulary; in the other modes it is told not to bother.
+ */
+function orchestrationSection(context: ContributionContext | undefined) {
+  if (!context) return undefined
+  return {
+    mode: context.orchestration.mode,
+    instructions: context.instructions,
+    candidateIds: context.candidates.map((c) => c.id),
+    vocabulary: context.vocabulary,
+    limits: context.limits,
+  }
+}
+
+export function createContextPackage(
+  state: ProblemState,
+  actor: ActorContext,
+  privateDraft = '',
+  context?: ContributionContext,
+) {
   const active = state.contributions.filter((c) => c.status === 'active')
+  const orchestration = orchestrationSection(context)
+  const proposes = orchestration?.mode === 'participant' || orchestration?.mode === 'api'
   return {
     $type: 'ai.bridgework.brainstorm.contextPackage',
     schemaVersion: '0.2',
@@ -64,6 +91,7 @@ export function createContextPackage(state: ProblemState, actor: ActorContext, p
       orchestrationPrompts: state.problem.thinkNext,
       privateDraft: privateDraft || null,
     },
+    ...(orchestration ? { orchestration } : {}),
     aperture: {
       mode: 'reviewed_contribution',
       privateProcessDisclosed: false,
@@ -92,6 +120,20 @@ export function createContextPackage(state: ProblemState, actor: ActorContext, p
           confidence: 'low | medium | high',
           relationTo: ['optional contribution ids'],
           endorsement: 'participant_review_required',
+          ...(proposes
+            ? {
+                proposals: [
+                  {
+                    kind: 'relation | conflict | duplicate',
+                    targetId: 'one of orchestration.candidateIds',
+                    relationKind: 'supports | opens | contradicts | relates (relation only)',
+                    conflictKind: 'source_conflict | knowledge_conflict | decision_conflict | assumption_conflict | commitment_conflict (conflict only)',
+                    reason: 'one or two sentences a reviewer can check',
+                    confidence: 0.6,
+                  },
+                ],
+              }
+            : {}),
         },
       ],
       privateProcessDisclosed: false,
@@ -114,7 +156,12 @@ export function validateContributionPackage(value: unknown, problemId: string): 
     if (typeof item?.content !== 'string' || item.content.trim() === '') {
       throw new Error('Every contribution needs non-empty content.')
     }
+    if (item.proposals !== undefined && !Array.isArray(item.proposals)) {
+      throw new Error('proposals must be an array when present.')
+    }
   }
+  // Proposals are only shape-checked here. The server screens them against
+  // canonical state and reports anything it drops, with the reason.
   // participantId in the package is a hint, never proof: the server attributes
   // the contribution to whoever the session token resolves to.
   return data as ContributionPackage

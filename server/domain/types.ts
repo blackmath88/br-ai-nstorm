@@ -45,6 +45,34 @@ export const CONFLICT_KINDS: ConflictKind[] = [
 export type ProposalKind = 'relation' | 'conflict' | 'duplicate' | 'classification'
 
 /**
+ * Who does the AI judgement for a problem — and therefore who pays for it.
+ *
+ *  - `participant`   the contributor's own LLM proposes relations/conflicts as
+ *                    part of its contribution, from a bounded candidate set the
+ *                    server hands out. The server spends nothing on inference.
+ *  - `api`           the server's AI curator runs on every contribution, on the
+ *                    operator's key. Only selectable when one is configured.
+ *  - `deterministic` lexical curation only. No AI judgement from anyone.
+ *
+ * The deterministic curator runs in every mode as the floor. One mode per
+ * problem, never per participant, so a reviewer can always tell why a
+ * contribution did or did not arrive with AI proposals.
+ */
+export type OrchestrationMode = 'participant' | 'api' | 'deterministic'
+
+export const ORCHESTRATION_MODES: OrchestrationMode[] = ['participant', 'api', 'deterministic']
+
+export const DEFAULT_ORCHESTRATION_MODE: OrchestrationMode = 'participant'
+
+export interface OrchestrationSetting {
+  mode: OrchestrationMode
+  /** Absent while the problem is still on the default it was created with. */
+  changedBy?: string
+  changedAt?: string
+  reason?: string
+}
+
+/**
  * How a contribution reached shared memory. This is deliberately *not* the same
  * field as who authored it — see {@link Provenance}.
  */
@@ -54,6 +82,7 @@ export type ContributionSource =
   | 'external_llm'    // returned through the clipboard aperture
   | 'mcp'             // arrived through an MCP client
   | 'seed'            // imported from the pre-backend prototype data
+  | 'repo_import'     // extracted deterministically from a source repository's documents
 
 export type Endorsement = 'participant_review_required' | 'human_endorsed'
 
@@ -104,6 +133,8 @@ export interface ProblemRecord {
   thinkNext: string[]
   createdAt: string
   createdBy: string
+  /** Who does the AI judgement for this problem. Folded from `OrchestrationModeChanged`. */
+  orchestration: OrchestrationSetting
 }
 
 export type ContributionStatus = 'active' | 'superseded' | 'retracted'
@@ -172,8 +203,17 @@ export interface CurationProposal {
   suggestedKind?: ContributionKind
   reason: string
   confidence: number
-  /** e.g. `curator:deterministic`, `curator:openai:<model>`. Never a person. */
+  /**
+   * e.g. `curator:deterministic`, `curator:openai:<model>`, or `agent:<model>`
+   * for a participant's own LLM. Never a person.
+   */
   proposedBy: string
+  /**
+   * Set when the proposing agent acted for a participant (`prov:actedOnBehalfOf`)
+   * — i.e. the contributor's own LLM proposed it in `participant` mode. That
+   * participant may not be the one who accepts it.
+   */
+  onBehalfOf?: string
   status: ProposalStatus
   createdAt: string
   /** Always a person. Only a person can move a proposal out of `pending`. */

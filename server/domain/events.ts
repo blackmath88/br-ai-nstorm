@@ -12,7 +12,7 @@
  */
 import type {
   ConflictKind, ContributionKind, ContributionRecord, EvaluationRecord,
-  ProblemRecord, Provenance, RelationKind, Visibility,
+  OrchestrationMode, ProblemRecord, Provenance, RelationKind, Visibility,
 } from './types.js'
 
 export type EventType =
@@ -28,12 +28,13 @@ export type EventType =
   | 'EvaluationAdded'
   | 'ContributionSuperseded'
   | 'VisibilityChanged'
+  | 'OrchestrationModeChanged'
 
 export const EVENT_TYPES: EventType[] = [
   'ProblemCreated', 'ContributionAdded', 'ContributionEdited',
   'RelationProposed', 'RelationAccepted', 'RelationRejected',
   'ConflictProposed', 'ConflictAccepted', 'ConflictRejected',
-  'EvaluationAdded', 'ContributionSuperseded', 'VisibilityChanged',
+  'EvaluationAdded', 'ContributionSuperseded', 'VisibilityChanged', 'OrchestrationModeChanged',
 ]
 
 export interface MemoryEvent<P = Record<string, unknown>> {
@@ -136,6 +137,7 @@ export interface ProposalPayload {
   reason: string
   confidence: number
   proposedBy: string
+  onBehalfOf?: string
 }
 
 export interface RelationAcceptedPayload {
@@ -174,6 +176,12 @@ export interface ContributionSupersededPayload {
 export interface VisibilityChangedPayload {
   from: Visibility
   to: Visibility
+  reason?: string
+}
+
+export interface OrchestrationModeChangedPayload {
+  from: OrchestrationMode
+  to: OrchestrationMode
   reason?: string
 }
 

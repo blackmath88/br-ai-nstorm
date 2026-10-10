@@ -6,18 +6,23 @@
  * | participant           | contribute, edit own, review proposals     | —                               |
  * | deterministic curator | propose                                    | write any event                 |
  * | AI curator            | propose (from a bounded candidate set)     | write any event, declare truth  |
+ * | participant's own LLM | propose, attached to its own contribution  | write any event; be accepted by |
+ * |                       |                                            | the participant it acted for    |
  *
  * The "may never write an event" half is enforced by construction: curator
  * modules do not import `makeEvent`. This module enforces the half that needs a
  * runtime check — that the actor asking for a canonical mutation is a person.
  */
 import type { ActorContext } from '../auth/actor-context.js'
-import type { ContributionRecord, CurationProposal } from './types.js'
+import type { ContributionRecord, CurationProposal, OrchestrationMode } from './types.js'
+import { ORCHESTRATION_MODES } from './types.js'
 import { forbidden, invalid } from './errors.js'
 
 /** Curator identities are namespaced so they can never be mistaken for participants. */
 export const CURATOR_PREFIX = 'curator:'
 export const PARTICIPANT_PREFIX = 'person:'
+/** A participant's own LLM, acting on their behalf. Never a person, never a server curator. */
+export const AGENT_PREFIX = 'agent:'
 
 export const isCurator = (actorId: string): boolean => actorId.startsWith(CURATOR_PREFIX)
 export const isParticipant = (actorId: string): boolean => actorId.startsWith(PARTICIPANT_PREFIX)
@@ -42,6 +47,37 @@ export function assertMayReview(actor: ActorContext, proposal: CurationProposal)
       reviewedBy: proposal.reviewedBy,
     })
   }
+  // Without this, participant-mode orchestration is self-approval with extra
+  // steps: Kai's model says his claim contradicts Lea's, and Kai accepts it.
+  if (proposal.onBehalfOf && proposal.onBehalfOf === actor.actorId) {
+    throw forbidden('A proposal your own AI made must be reviewed by another participant.', {
+      proposalId: proposal.id,
+      onBehalfOf: proposal.onBehalfOf,
+    })
+  }
+}
+
+/**
+ * Switching who does (and pays for) AI judgement is a human act, and `api`
+ * is only selectable when the server actually has a curator configured — a
+ * mode that silently does nothing would misreport where proposals came from.
+ */
+export function assertMayChangeOrchestration(
+  actor: ActorContext,
+  input: { from: OrchestrationMode; to: unknown; apiAvailable: boolean },
+): OrchestrationMode {
+  assertHumanActor(actor, 'change orchestration mode')
+  if (typeof input.to !== 'string' || !(ORCHESTRATION_MODES as string[]).includes(input.to)) {
+    throw invalid(`Unknown orchestration mode "${String(input.to)}".`, { allowed: ORCHESTRATION_MODES })
+  }
+  const to = input.to as OrchestrationMode
+  if (to === input.from) throw invalid(`Orchestration is already "${to}".`)
+  if (to === 'api' && !input.apiAvailable) {
+    throw invalid('API orchestration is not configured on this server. Set a curator key first.', {
+      allowed: ORCHESTRATION_MODES.filter((mode) => mode !== 'api'),
+    })
+  }
+  return to
 }
 
 /**
@@ -77,6 +113,18 @@ export const AI_CANDIDATE_LIMIT = 12
 export const PROPOSALS_PER_CONTRIBUTION_LIMIT = 8
 
 export const MAX_CONTRIBUTION_LENGTH = 8000
+
+/**
+ * Candidates handed to a participant's LLM in `participant` mode. Same bound as
+ * the server curator gets, so the client-side read cost stays flat as the
+ * problem grows.
+ */
+export const CONTEXT_CANDIDATE_LIMIT = AI_CANDIDATE_LIMIT
+
+/** Upper bound on proposals a participant's LLM may attach to one contribution. */
+export const PARTICIPANT_PROPOSAL_LIMIT = PROPOSALS_PER_CONTRIBUTION_LIMIT
+
+export const MAX_PROPOSAL_REASON_LENGTH = 600
 
 export function assertContributionContent(content: string): string {
   const trimmed = content.trim()

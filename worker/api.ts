@@ -70,6 +70,7 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
         aiCurator: false,
         curator: services.curator.name,
         prototypeAuth: true,
+        orchestration: services.orchestration.options(),
       })
     }
 
@@ -101,6 +102,9 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
       const actor = await withActor()
 
       if (method === 'GET' && !section) {
+        if (url.searchParams.get('detail') === 'compact') {
+          return json(200, { ...(await services.problems.getCompactState(problemId)), viewer: actor })
+        }
         return json(200, { ...(await services.problems.getState(problemId)), viewer: actor })
       }
       if (method === 'GET' && section === 'updates') {
@@ -124,6 +128,22 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
           contributions: await services.problems.getMyContributions(problemId, actor),
         })
       }
+      if (method === 'GET' && section === 'orchestration') {
+        return json(200, await services.orchestration.get(problemId))
+      }
+      if (method === 'POST' && section === 'orchestration') {
+        const body = await readJson(request)
+        const reason = optionalStr(body.reason, 'reason')
+        const orchestration = await services.orchestration.setMode(actor, {
+          problemId,
+          mode: body.mode,
+          ...(reason ? { reason } : {}),
+        })
+        return json(200, { orchestration, options: services.orchestration.options() })
+      }
+      if (method === 'GET' && section === 'context') {
+        return json(200, await services.orchestration.context(problemId, url.searchParams.get('draft') ?? ''))
+      }
       if (method === 'POST' && section === 'contributions') {
         const body = await readJson(request)
         const kind = optionalStr(body.kind, 'kind')
@@ -137,6 +157,7 @@ export async function handleApi(request: Request, services: WorkerServices): Pro
           ...(source ? { source: source as ContributionSource } : {}),
           ...(sourceDetail ? { sourceDetail } : {}),
           ...(preparedBy ? { preparedBy } : {}),
+          ...(body.proposals !== undefined ? { proposals: body.proposals } : {}),
         })
         return json(201, result)
       }

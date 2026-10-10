@@ -11,13 +11,14 @@
 import type {
   ConflictAcceptedPayload, ContributionAddedPayload, ContributionEditedPayload,
   ContributionSupersededPayload, EvaluationAddedPayload, MemoryEvent,
-  ProblemCreatedPayload, ProposalPayload, RelationAcceptedPayload,
+  OrchestrationModeChangedPayload, ProblemCreatedPayload, ProposalPayload, RelationAcceptedPayload,
   ReviewRejectedPayload, VisibilityChangedPayload,
 } from './events.js'
 import type {
   ConflictRecord, ContributionRecord, CurationProposal, EvaluationRecord,
   ProblemRecord, ProblemState, RelationRecord,
 } from './types.js'
+import { DEFAULT_ORCHESTRATION_MODE } from './types.js'
 
 const asPayload = <T>(event: MemoryEvent): T => event.payload as unknown as T
 
@@ -52,6 +53,22 @@ function evolve(acc: Accumulator, event: MemoryEvent): Accumulator {
         thinkNext: p.thinkNext ?? [],
         createdAt: event.timestamp,
         createdBy: event.actorId,
+        orchestration: { mode: DEFAULT_ORCHESTRATION_MODE },
+      }
+      return acc
+    }
+
+    case 'OrchestrationModeChanged': {
+      if (!acc.problem) return acc
+      const p = asPayload<OrchestrationModeChangedPayload>(event)
+      acc.problem = {
+        ...acc.problem,
+        orchestration: {
+          mode: p.to,
+          changedBy: event.actorId,
+          changedAt: event.timestamp,
+          ...(p.reason ? { reason: p.reason } : {}),
+        },
       }
       return acc
     }
@@ -128,6 +145,7 @@ function evolve(acc: Accumulator, event: MemoryEvent): Accumulator {
         reason: p.reason,
         confidence: p.confidence,
         proposedBy: p.proposedBy,
+        ...(p.onBehalfOf ? { onBehalfOf: p.onBehalfOf } : {}),
         status: 'pending',
         createdAt: event.timestamp,
       })
@@ -231,22 +249,13 @@ export function project(events: MemoryEvent[]): ProblemState | undefined {
 
 /** Every problem present in a log, in creation order. */
 export function projectProblems(events: MemoryEvent[]): ProblemRecord[] {
-  const problems: ProblemRecord[] = []
+  const problems = new Map<string, Accumulator>()
   for (const event of events) {
-    if (event.eventType !== 'ProblemCreated') continue
-    const p = asPayload<ProblemCreatedPayload>(event)
-    problems.push({
-      id: event.problemId,
-      title: p.title,
-      shortTitle: p.shortTitle,
-      description: p.description,
-      stateSummary: p.stateSummary,
-      thinkNext: p.thinkNext ?? [],
-      createdAt: event.timestamp,
-      createdBy: event.actorId,
-    })
+    if (event.eventType !== 'ProblemCreated' && event.eventType !== 'OrchestrationModeChanged') continue
+    const acc = problems.get(event.problemId) ?? empty()
+    problems.set(event.problemId, evolve(acc, event))
   }
-  return problems
+  return [...problems.values()].flatMap((acc) => (acc.problem ? [acc.problem] : []))
 }
 
 export const activeContributions = (state: ProblemState): ContributionRecord[] =>

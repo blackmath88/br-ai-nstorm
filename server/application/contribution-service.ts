@@ -19,6 +19,7 @@ import {
 } from '../domain/policies.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { proposeDeterministically, inferKind, type ProposalDraft } from '../curation/deterministic.js'
+import { agentIdFor, screenParticipantProposals, type DroppedProposal } from '../curation/participant.js'
 import { loadState, type ServiceDeps } from './support.js'
 
 export interface AddContributionInput {
@@ -31,12 +32,27 @@ export interface AddContributionInput {
   preparedBy?: string
   endorsement?: Endorsement
   visibility?: Visibility
+  /**
+   * Proposals the contributor's own LLM attached (`participant` orchestration).
+   * Unvalidated on arrival; screened against canonical state before anything
+   * is appended. See `curation/participant.ts`.
+   */
+  proposals?: unknown
 }
 
 export interface AddContributionResult {
   contribution: ContributionRecord
   proposals: import('../domain/types.js').CurationProposal[]
-  curator: { deterministic: number; ai: number; aiEnabled: boolean }
+  curator: {
+    /** The problem's orchestration mode at the time of this contribution. */
+    mode: import('../domain/types.js').OrchestrationMode
+    deterministic: number
+    ai: number
+    participant: number
+    aiEnabled: boolean
+  }
+  /** Participant proposals that were not recorded, each with the reason. */
+  dropped: DroppedProposal[]
 }
 
 export interface ContributionService {
@@ -120,14 +136,30 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         candidates,
       })
 
+      const mode = state.problem.orchestration.mode
+
+      // The operator's key is spent only when the problem has explicitly
+      // switched to `api` — never as a silent fallback.
       let ai: ProposalDraft[] = []
-      try {
-        ai = await deps.curator.propose({ problem: state.problem, contribution, candidates })
-      } catch (error) {
-        console.error('[br-ai-nstorm] curator failed, continuing without it:', error)
+      if (mode === 'api') {
+        try {
+          ai = await deps.curator.propose({ problem: state.problem, contribution, candidates })
+        } catch (error) {
+          console.error('[br-ai-nstorm] curator failed, continuing without it:', error)
+        }
       }
 
-      const drafts = dedupe([...deterministic, ...ai], state.proposals)
+      const screened = screenParticipantProposals({
+        problemId: input.problemId,
+        mode,
+        contribution,
+        contributions: state.contributions,
+        proposals: input.proposals,
+        agentId: agentIdFor(input.preparedBy),
+        onBehalfOf: actor.actorId,
+      })
+
+      const drafts = dedupe([...screened.drafts, ...deterministic, ...ai], state.proposals)
       const proposalEvents: MemoryEvent[] = []
       const proposals: import('../domain/types.js').CurationProposal[] = []
 
@@ -155,10 +187,13 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         contribution,
         proposals,
         curator: {
+          mode,
           deterministic: deterministic.length,
           ai: ai.length,
+          participant: screened.drafts.length,
           aiEnabled: deps.curator.enabled,
         },
+        dropped: screened.dropped,
       }
     },
 
