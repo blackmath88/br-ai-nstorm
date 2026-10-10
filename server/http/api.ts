@@ -36,9 +36,17 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
   res.end(JSON.stringify(body, null, 2))
 }
 
+/** Comfortably above the largest legitimate body (a 64-file import bundle). */
+const MAX_BODY_BYTES = 20 * 1024 * 1024
+
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(chunk as Buffer)
+  let size = 0
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length
+    if (size > MAX_BODY_BYTES) throw invalid('Request body is too large.')
+    chunks.push(chunk as Buffer)
+  }
   const raw = Buffer.concat(chunks).toString('utf8').trim()
   if (!raw) return {}
   try {
@@ -117,6 +125,14 @@ export function createApi(services: Services, options: ApiOptions): ApiHandler {
       if (method === 'GET' && path === '/api/conflict-types') {
         await withActor(req)
         return send(res, 200, { conflictTypes: CONFLICT_KIND_MEANING })
+      }
+
+      if (method === 'POST' && (path === '/api/imports' || path === '/api/imports/preview')) {
+        const actor = await withActor(req)
+        const body = await readJson(req)
+        return path.endsWith('/preview')
+          ? send(res, 200, await services.imports.preview(actor, body))
+          : send(res, 201, await services.imports.apply(actor, body))
       }
 
       const problemMatch = /^\/api\/problems\/([^/]+)(?:\/([^/]+))?$/.exec(path)

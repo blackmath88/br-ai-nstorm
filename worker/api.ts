@@ -100,6 +100,14 @@ export async function handleApi(
       return json(200, { conflictTypes: CONFLICT_KIND_MEANING })
     }
 
+    if (method === 'POST' && (path === '/api/imports' || path === '/api/imports/preview')) {
+      const actor = await withActor()
+      const body = await readJson(request)
+      return path.endsWith('/preview')
+        ? json(200, await services.imports.preview(actor, body))
+        : json(201, await services.imports.apply(actor, body))
+    }
+
     const problemMatch = /^\/api\/problems\/([^/]+)(?:\/([^/]+))?$/.exec(path)
     if (problemMatch) {
       const problemId = decodeURIComponent(problemMatch[1])

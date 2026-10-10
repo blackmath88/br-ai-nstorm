@@ -111,7 +111,20 @@ export function SideRail({
               </div>
               <div>
                 <strong>source</strong> {selected.provenance.source}
-                {selected.provenance.sourceDetail ? ` · ${selected.provenance.sourceDetail}` : ''}
+                {selected.provenance.sourceDetail
+                  ? selected.provenance.sourceDetail.split(' · ').map((part) =>
+                      part.startsWith('https://') ? (
+                        <span key={part}>
+                          {' · '}
+                          <a href={part} target="_blank" rel="noopener noreferrer">
+                            open source lines ↗
+                          </a>
+                        </span>
+                      ) : (
+                        ` · ${part}`
+                      ),
+                    )
+                  : ''}
               </div>
               <div>
                 <strong>endorsement</strong> {selected.provenance.endorsement.replace(/_/g, ' ')}

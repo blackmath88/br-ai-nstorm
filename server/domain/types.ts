@@ -99,7 +99,12 @@ export type Endorsement = 'participant_review_required' | 'human_endorsed'
  *     property of the contribution, and inclusion in shared state implies nothing.
  */
 export interface Provenance {
-  /** The agent responsible for the content (`prov:wasAttributedTo`). Always a person. */
+  /**
+   * The agent responsible for the content (`prov:wasAttributedTo`). A person,
+   * or — only when no person can honestly be named — a namespaced origin:
+   * `seed:*` for prototype data, `repo:<owner/name>` for repository imports.
+   * Never an AI.
+   */
   authoredBy: string
   /** The activity/agent that produced the text, when it was not the author directly (`prov:wasGeneratedBy`). */
   preparedBy?: string

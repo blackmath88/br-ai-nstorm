@@ -140,3 +140,23 @@ describe('Worker MCP', () => {
     expect(health.orchestration.find((o) => o.mode === 'api')?.available).toBe(false)
   })
 })
+
+describe('Worker import route', () => {
+  it('imports a repository bundle into the Durable Object log', async () => {
+    const { fetchWorker } = await worker()
+    const res = await fetchWorker('https://demo.example/api/imports', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer demo-achim' },
+      body: JSON.stringify({
+        manifest: { version: 1, repository: 'o/r', problemSpaces: [{ id: 'notes', sources: ['NOTES.md'] }] },
+        files: { 'NOTES.md': '# Notes\n\n## Open questions\n\n- Who decides on a hot morning?\n' },
+      }),
+    })
+    expect(res.status).toBe(201)
+    const state = await fetchWorker('https://demo.example/api/problems/notes', { headers: { authorization: 'Bearer demo-kai' } })
+    const body = (await state.json()) as { contributions: Array<{ kind: string; provenance: { authoredBy: string } }> }
+    expect(body.contributions).toEqual([
+      expect.objectContaining({ kind: 'question', provenance: expect.objectContaining({ authoredBy: 'repo:o/r' }) }),
+    ])
+  })
+})
