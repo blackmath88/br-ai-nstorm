@@ -43,9 +43,9 @@ Architectural boundary at this point:
 
 > AI may interpret and propose structure. Deterministic domain logic and human review control canonical shared memory.
 
-## Milestone 0.3 — Real Shared Room (candidate)
+## Milestone 0.3 — Real Shared Room
 
-Branch: `feature/real-shared-room-v0.3` — **not yet preserved as a milestone branch.**
+Branch: `milestone/real-shared-room-v0.3` (includes the Cloudflare visual demo).
 
 The goal was narrow on purpose: make ONE existing problem work end to end
 through the real backend, with several participants on two transports, and add
@@ -145,9 +145,9 @@ Architectural boundary at this point:
 > resolved by the server. Attribution cannot be forged by a client or
 > manufactured by a model. AI proposes; a person makes things canonical.
 
-## Milestone 0.4 — Orchestration, remote MCP, adoption (candidate)
+## Milestone 0.4 — Orchestration, remote MCP, adoption
 
-Branch: `ccr-00e0be58-t5hpg7` — **not yet preserved as a milestone branch.**
+Merged to `main` as the current coherent version. Preserve it as `milestone/orchestration-adoption-v0.4` when the next milestone lands.
 
 ### What changed
 
