@@ -14,6 +14,7 @@ import type { MemoryEvent } from '../domain/events.js'
 import { projectProblems } from '../domain/projections.js'
 import { openConflicts } from '../domain/conflicts.js'
 import type { ActorContext } from '../auth/actor-context.js'
+import { notFound } from '../domain/errors.js'
 import { loadState, loadStateAndEvents, byTimeThenId, withDefaultOrchestration, type ServiceDeps } from './support.js'
 
 export interface UpdateItem {
@@ -84,6 +85,12 @@ export interface ProblemService {
   getUpdates(problemId: string, actor: ActorContext, since?: string): Promise<ProblemUpdates>
   getMyContributions(problemId: string, actor: ActorContext): Promise<ContributionRecord[]>
   getCompactState(problemId: string): Promise<CompactState>
+  /**
+   * A cheap change token for one problem: clients poll this and re-read only
+   * when it moves. Counts this problem's events, so activity elsewhere in the
+   * room does not trigger a refresh.
+   */
+  getVersion(problemId: string): Promise<{ problemId: string; version: number; lastEventAt: string | null }>
   getContributions(problemId: string, ids: string[]): Promise<{ contributions: ContributionRecord[]; missing: string[] }>
 }
 
@@ -154,6 +161,16 @@ function describe(event: MemoryEvent, state: ProblemState): { title: string; det
       return { title: 'Conflict proposal rejected', detail: 'A proposed conflict was declined on review.' }
     case 'EvaluationAdded':
       return { title: 'Evaluation added', detail: `${String(p.stance)} · ${labelOf(state, String(p.targetId))}` }
+    case 'ConflictResolved': {
+      const conflict = state.conflicts.find((c) => c.id === event.objectId)
+      const pair = conflict
+        ? `${labelOf(state, conflict.leftObjectId)} ↔ ${labelOf(state, conflict.rightObjectId)}`
+        : event.objectId
+      return {
+        title: p.action === 'resolve' ? 'Conflict resolved' : 'Conflict dismissed',
+        detail: `${pair} · ${String(p.note ?? '')}`,
+      }
+    }
     case 'OrchestrationModeChanged':
       return {
         title: 'Orchestration changed',
@@ -162,6 +179,34 @@ function describe(event: MemoryEvent, state: ProblemState): { title: string; det
     default:
       return { title: event.eventType, detail: '' }
   }
+}
+
+const MAX_JUDGEMENT_PROMPTS = 3
+
+/**
+ * Prompts derived from what people have flagged: evidence someone asked for,
+ * and claims more than one person doubts. Orchestration from the group's own
+ * judgements rather than from a model's.
+ */
+export function judgementPrompts(state: ProblemState): string[] {
+  const active = new Map(state.contributions.filter((c) => c.status === 'active').map((c) => [c.id, c]))
+  const byTarget = new Map<string, { needs: number; doubt: number }>()
+  for (const e of state.evaluations) {
+    if (!active.has(e.targetId)) continue
+    const entry = byTarget.get(e.targetId) ?? { needs: 0, doubt: 0 }
+    if (e.stance === 'needs_evidence') entry.needs += 1
+    if (e.stance === 'doubtful') entry.doubt += 1
+    byTarget.set(e.targetId, entry)
+  }
+  const ranked = [...byTarget]
+    .filter(([, c]) => c.needs > 0 || c.doubt > 1)
+    .sort(([a, x], [b, y]) => y.needs + y.doubt - (x.needs + x.doubt) || a.localeCompare(b))
+    .slice(0, MAX_JUDGEMENT_PROMPTS)
+  return ranked.map(([id, c]) =>
+    c.needs > 0
+      ? `Evidence wanted (${c.needs}): “${active.get(id)!.label}” — what would support or refute it?`
+      : `${c.doubt} people doubt “${active.get(id)!.label}” — what would change their minds?`,
+  )
 }
 
 export function createProblemService(deps: ServiceDeps): ProblemService {
@@ -187,6 +232,16 @@ export function createProblemService(deps: ServiceDeps): ProblemService {
     async getMyContributions(problemId, actor) {
       const state = await loadState(deps, problemId)
       return state.contributions.filter((c) => c.provenance.authoredBy === actor.actorId)
+    },
+
+    async getVersion(problemId) {
+      const events = await deps.repository.read(problemId)
+      if (!events.some((e) => e.eventType === 'ProblemCreated')) throw notFound('Problem', problemId)
+      return {
+        problemId,
+        version: events.length,
+        lastEventAt: events.length > 0 ? events[events.length - 1].timestamp : null,
+      }
     },
 
     async getCompactState(problemId) {
@@ -246,6 +301,14 @@ export function createProblemService(deps: ServiceDeps): ProblemService {
           const other = conflict.leftObjectId === contribution.id ? conflict.rightObjectId : conflict.leftObjectId
           impact.push(`${conflict.status} ${conflict.conflictType} with ${labelOf(state, other)}`)
         }
+        const judgements = state.evaluations.filter((e) => e.targetId === contribution.id)
+        if (judgements.length > 0) {
+          const counts = new Map<string, number>()
+          for (const e of judgements) counts.set(e.stance, (counts.get(e.stance) ?? 0) + 1)
+          impact.push(
+            [...counts].map(([stance, n]) => `${n} ${stance.replace('_', ' ')}`).join(' · '),
+          )
+        }
         if (contribution.status === 'superseded') {
           impact.push(`superseded by ${labelOf(state, contribution.supersededBy ?? '')}`)
         }
@@ -264,7 +327,7 @@ export function createProblemService(deps: ServiceDeps): ProblemService {
         unresolvedConflicts: openConflicts(state.conflicts),
         // The curation queue is shared: anyone in the room may review anything.
         pendingProposals: state.proposals.filter((p) => p.status === 'pending'),
-        thinkNext: state.problem.thinkNext,
+        thinkNext: [...state.problem.thinkNext, ...judgementPrompts(state)],
       }
     },
   }

@@ -132,6 +132,53 @@ export const PARTICIPANT_PROPOSAL_LIMIT = PROPOSALS_PER_CONTRIBUTION_LIMIT
 
 export const MAX_PROPOSAL_REASON_LENGTH = 600
 
+export const MIN_RESOLUTION_NOTE_LENGTH = 10
+export const MAX_NOTE_LENGTH = 1000
+
+export const EVALUATION_STANCES = ['useful', 'doubtful', 'needs_evidence'] as const
+
+/**
+ * Closing a conflict is a human act, and it must say why: a conflict that
+ * vanishes without an explanation is exactly the flattening this system exists
+ * to prevent.
+ */
+export function assertMayResolveConflict(
+  actor: ActorContext,
+  conflict: { id: string; status: string },
+  input: { action: unknown; note: unknown },
+): { action: 'resolve' | 'dismiss'; note: string } {
+  assertHumanActor(actor, 'close a conflict')
+  if (input.action !== 'resolve' && input.action !== 'dismiss') {
+    throw invalid('action must be "resolve" or "dismiss".')
+  }
+  if (conflict.status !== 'open') {
+    throw invalid(`This conflict is already ${conflict.status}.`, { conflictId: conflict.id })
+  }
+  const note = typeof input.note === 'string' ? input.note.trim() : ''
+  if (note.length < MIN_RESOLUTION_NOTE_LENGTH) {
+    throw invalid(
+      input.action === 'resolve'
+        ? 'Say how the conflict was resolved — the note is what the group keeps.'
+        : 'Say why this is not a real conflict — the note is what the group keeps.',
+    )
+  }
+  if (note.length > MAX_NOTE_LENGTH) throw invalid(`The note may be at most ${MAX_NOTE_LENGTH} characters.`)
+  return { action: input.action, note }
+}
+
+export function assertEvaluation(input: { stance: unknown; note?: unknown }): {
+  stance: (typeof EVALUATION_STANCES)[number]
+  note?: string
+} {
+  if (typeof input.stance !== 'string' || !(EVALUATION_STANCES as readonly string[]).includes(input.stance)) {
+    throw invalid(`stance must be one of ${EVALUATION_STANCES.join(', ')}.`)
+  }
+  if (input.note !== undefined && input.note !== null && typeof input.note !== 'string') throw invalid('note must be a string.')
+  const note = typeof input.note === 'string' ? input.note.trim() : ''
+  if (note.length > MAX_NOTE_LENGTH) throw invalid(`The note may be at most ${MAX_NOTE_LENGTH} characters.`)
+  return { stance: input.stance as (typeof EVALUATION_STANCES)[number], ...(note ? { note } : {}) }
+}
+
 export function assertContributionContent(content: string): string {
   const trimmed = content.trim()
   if (!trimmed) throw invalid('A contribution needs content.')

@@ -21,6 +21,7 @@ const MARKER: Record<string, string> = {
   EvaluationAdded: 'synthesis',
   VisibilityChanged: 'synthesis',
   OrchestrationModeChanged: 'problem',
+  ConflictResolved: 'evidence',
 }
 
 export const actorLabel = (actorId: string): string =>
@@ -59,6 +60,11 @@ function summarise(event: MemoryEvent, label: (id: string) => string): { title: 
       return { title: 'Relation proposal rejected', detail: 'Declined on review; nothing became canonical.' }
     case 'ConflictRejected':
       return { title: 'Conflict proposal rejected', detail: 'Declined on review; nothing became canonical.' }
+    case 'ConflictResolved':
+      return {
+        title: p.action === 'resolve' ? 'Conflict resolved' : 'Conflict dismissed',
+        detail: `${label(event.objectId)} · ${String(p.note ?? '')}`,
+      }
     case 'OrchestrationModeChanged':
       return {
         title: 'Orchestration changed',

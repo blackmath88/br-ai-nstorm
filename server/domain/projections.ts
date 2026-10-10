@@ -11,7 +11,7 @@
 import type {
   ConflictAcceptedPayload, ContributionAddedPayload, ContributionEditedPayload,
   ContributionSupersededPayload, EvaluationAddedPayload, MemoryEvent,
-  OrchestrationModeChangedPayload, ProblemCreatedPayload, ProposalPayload, RelationAcceptedPayload,
+  ConflictResolvedPayload, OrchestrationModeChangedPayload, ProblemCreatedPayload, ProposalPayload, RelationAcceptedPayload,
   ReviewRejectedPayload, VisibilityChangedPayload,
 } from './events.js'
 import type {
@@ -202,8 +202,27 @@ function evolve(acc: Accumulator, event: MemoryEvent): Accumulator {
       return acc
     }
 
+    case 'ConflictResolved': {
+      const existing = acc.conflicts.get(event.objectId)
+      if (!existing || existing.status !== 'open') return acc
+      const p = asPayload<ConflictResolvedPayload>(event)
+      acc.conflicts.set(event.objectId, {
+        ...existing,
+        status: p.action === 'resolve' ? 'resolved' : 'dismissed',
+        resolvedBy: event.actorId,
+        resolvedAt: event.timestamp,
+        resolutionNote: p.note,
+      })
+      return acc
+    }
+
     case 'EvaluationAdded': {
       const p = asPayload<EvaluationAddedPayload>(event)
+      // One standing judgement per person per contribution: a new one replaces
+      // the old in state. The log keeps every change of mind.
+      for (const [id, previous] of acc.evaluations) {
+        if (previous.actorId === event.actorId && previous.targetId === p.targetId) acc.evaluations.delete(id)
+      }
       acc.evaluations.set(event.objectId, {
         id: event.objectId,
         problemId: event.problemId,

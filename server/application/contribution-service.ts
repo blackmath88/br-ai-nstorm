@@ -15,7 +15,8 @@ import type {
 import { CONTRIBUTION_KINDS } from '../domain/types.js'
 import { invalid, notFound } from '../domain/errors.js'
 import {
-  assertContributionContent, assertMayEdit, assertMaySupersede, assertHumanActor, PROPOSALS_PER_CONTRIBUTION_LIMIT,
+  assertContributionContent, assertEvaluation, assertMayEdit, assertMaySupersede, assertHumanActor,
+  PROPOSALS_PER_CONTRIBUTION_LIMIT,
 } from '../domain/policies.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { proposeDeterministically, inferKind, type ProposalDraft } from '../curation/deterministic.js'
@@ -61,7 +62,10 @@ export interface ContributionService {
   edit(actor: ActorContext, input: { problemId: string; contributionId: string; content?: string; kind?: ContributionKind; reason?: string }): Promise<ContributionRecord>
   supersede(actor: ActorContext, input: { problemId: string; contributionId: string; supersededBy: string; reason?: string }): Promise<ContributionRecord>
   changeVisibility(actor: ActorContext, input: { problemId: string; contributionId: string; to: Visibility; reason?: string }): Promise<ContributionRecord>
-  evaluate(actor: ActorContext, input: { problemId: string; targetId: string; stance: 'useful' | 'doubtful' | 'needs_evidence'; note?: string }): Promise<void>
+  evaluate(
+    actor: ActorContext,
+    input: { problemId: string; targetId: string; stance: unknown; note?: unknown },
+  ): Promise<import('../domain/types.js').EvaluationRecord>
 }
 
 const assertKind = (kind: unknown): ContributionKind => {
@@ -279,15 +283,25 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
 
     async evaluate(actor, input) {
       assertHumanActor(actor, 'evaluate a contribution')
+      const { stance, note } = assertEvaluation(input)
       await find(input.problemId, input.targetId)
       const event = makeEvent(deps, {
         problemId: input.problemId,
         actorId: actor.actorId,
         objectId: deps.ids.next('eval'),
         eventType: 'EvaluationAdded',
-        payload: { targetId: input.targetId, stance: input.stance, ...(input.note ? { note: input.note } : {}) },
+        payload: { targetId: input.targetId, stance, ...(note ? { note } : {}) },
       })
       await deps.repository.append([event])
+      return {
+        id: event.objectId,
+        problemId: input.problemId,
+        targetId: input.targetId,
+        actorId: actor.actorId,
+        stance,
+        ...(note ? { note } : {}),
+        createdAt: event.timestamp,
+      }
     },
   }
 }
