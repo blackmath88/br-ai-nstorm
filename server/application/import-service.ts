@@ -12,7 +12,7 @@ import { assertHumanActor } from '../domain/policies.js'
 import { invalid } from '../domain/errors.js'
 import { manifestFiles, parseManifest } from '../adoption/manifest.js'
 import { planImport, type ImportPlan } from '../adoption/plan.js'
-import type { ServiceDeps } from './support.js'
+import { withFreshState, type ServiceDeps } from './support.js'
 
 /** Characters, not bytes: what a JS string length measures. */
 export const MAX_IMPORT_FILE_CHARS = 256 * 1024
@@ -72,10 +72,13 @@ export function createImportService(deps: ServiceDeps): ImportService {
     async preview(actor, raw) {
       return (await plan(actor, raw)).report
     },
-    async apply(actor, raw) {
-      const { events, report } = await plan(actor, raw)
-      if (events.length > 0) await deps.repository.append(events)
-      return report
-    },
+    // Planned against the whole log and appended only if nothing changed in
+    // between, so two overlapping pushes cannot both add the same units.
+    apply: (actor, raw) =>
+      withFreshState(deps, async (ifVersion) => {
+        const { events, report } = await plan(actor, raw)
+        if (events.length > 0) await deps.repository.append(events, { ifVersion })
+        return report
+      }),
   }
 }

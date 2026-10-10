@@ -11,7 +11,8 @@ import { createDemoAuth } from './demo-auth.js'
 import { createDurableEventRepository } from './durable-repository.js'
 
 interface EventLogStub {
-  append(events: MemoryEvent[]): Promise<void>
+  append(events: MemoryEvent[], ifVersion?: number): Promise<void | { stale: true; expected: number; actual: number }>
+  version(): Promise<number>
   appendIfEmpty(events: MemoryEvent[]): Promise<boolean>
   read(problemId?: string): Promise<MemoryEvent[]>
 }
@@ -35,6 +36,9 @@ function createCaptureRepository() {
     },
     async read(problemId) {
       return problemId ? events.filter((event) => event.problemId === problemId) : [...events]
+    },
+    async version() {
+      return events.length
     },
   }
   return { repository, events }

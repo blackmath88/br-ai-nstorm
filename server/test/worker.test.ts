@@ -25,8 +25,14 @@ import { structured, structuredError } from './harness.js'
 function memoryEnv(): WorkerEnv {
   let events: MemoryEvent[] = []
   const stub = {
-    async append(next: MemoryEvent[]) {
+    async append(next: MemoryEvent[], ifVersion?: number) {
+      if (ifVersion !== undefined && ifVersion !== events.length) {
+        return { stale: true as const, expected: ifVersion, actual: events.length }
+      }
       events = [...events, ...next]
+    },
+    async version() {
+      return events.length
     },
     async appendIfEmpty(next: MemoryEvent[]) {
       if (events.length > 0) return false
