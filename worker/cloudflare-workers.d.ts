@@ -13,6 +13,7 @@ declare module 'cloudflare:workers' {
     list<T>(options?: { prefix?: string }): Promise<Map<string, T>>
   }
   interface DurableObjectStorage extends DurableObjectStorageOps {
+    /** Present on both the storage object and the transaction handle. */
     transaction<T>(closure: (txn: DurableObjectStorageOps) => Promise<T>): Promise<T>
   }
   interface DurableObjectState {

@@ -64,7 +64,7 @@ export const sameConflictPair = (
 
 export const nextStatus = (current: ConflictStatus, action: 'resolve' | 'dismiss'): ConflictStatus => {
   if (current !== 'open') {
-    throw invalid(`A ${current} conflict cannot be ${action}d again.`)
+    throw invalid(`This conflict is already ${current}.`)
   }
   return action === 'resolve' ? 'resolved' : 'dismissed'
 }

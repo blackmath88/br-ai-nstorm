@@ -283,7 +283,7 @@ export default function App() {
             evaluations={data.state.evaluations}
             contributions={data.state.contributions}
             actorId={room.actor?.actorId ?? null}
-            onEvaluate={(targetId, stance, note) => void room.evaluate(targetId, stance, note)}
+            onEvaluate={room.evaluate}
             onSupersede={(id, by, reason) => void room.supersede(id, by, reason)}
             draft={draft}
             setDraft={setDraft}

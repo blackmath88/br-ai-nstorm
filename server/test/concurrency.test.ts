@@ -69,6 +69,59 @@ describe('two people review the same proposal at once', () => {
   })
 })
 
+describe('scoped checks', () => {
+  it('are not invalidated by activity on other problems', async () => {
+    harness = await createHarness()
+    const proposalId = await pendingConflictProposal(harness)
+    const lea = await harness.actor('Lea')
+    const mara = await harness.actor('Mara')
+    let writes = 0
+    const repo = harness.services.repository
+    const original = repo.version.bind(repo)
+    // Every time Lea's review reads the version, someone writes elsewhere.
+    repo.version = async (problemId?: string) => {
+      const v = await original(problemId)
+      if (problemId === 'campus-ai' && writes < 6) {
+        writes += 1
+        await harness!.services.contributions.add(mara, { problemId: 'basel-heat', content: `Elsewhere ${writes}` })
+      }
+      return v
+    }
+    const result = await harness.services.curation.accept(lea, { problemId: 'campus-ai', proposalId })
+    expect(result.proposal.status).toBe('accepted')
+    expect(writes).toBe(1) // first attempt succeeded despite the concurrent write
+  })
+})
+
+describe('superseding', () => {
+  it('requires an active replacement, so cycles cannot form', async () => {
+    harness = await createHarness()
+    const kai = await harness.actor('Kai')
+    const { contribution: x } = await harness.services.contributions.add(kai, { problemId: 'campus-ai', content: 'Estimate: 2 FTE.' })
+    const { contribution: y } = await harness.services.contributions.add(kai, { problemId: 'campus-ai', content: 'Estimate: 3 FTE.' })
+    await harness.services.contributions.supersede(kai, { problemId: 'campus-ai', contributionId: x.id, supersededBy: y.id })
+    // y cannot now be retired in favour of x, which is no longer active...
+    await expect(
+      harness.services.contributions.supersede(kai, { problemId: 'campus-ai', contributionId: y.id, supersededBy: x.id }),
+    ).rejects.toMatchObject({ code: 'invalid', message: expect.stringMatching(/itself superseded/) })
+  })
+
+  it('records one of two crossing supersessions, never both', async () => {
+    harness = await createHarness()
+    const kai = await harness.actor('Kai')
+    const lea = await harness.actor('Lea')
+    const { contribution: x } = await harness.services.contributions.add(kai, { problemId: 'campus-ai', content: 'Plan A.' })
+    const { contribution: y } = await harness.services.contributions.add(kai, { problemId: 'campus-ai', content: 'Plan B.' })
+    await Promise.allSettled([
+      harness.services.contributions.supersede(kai, { problemId: 'campus-ai', contributionId: x.id, supersededBy: y.id }),
+      harness.services.contributions.supersede(lea, { problemId: 'campus-ai', contributionId: y.id, supersededBy: x.id }),
+    ])
+    const state = await harness.services.problems.getState('campus-ai')
+    const statuses = [x.id, y.id].map((id) => state.contributions.find((c) => c.id === id)!.status)
+    expect(statuses.filter((s) => s === 'active')).toHaveLength(1)
+  })
+})
+
 describe('overlapping imports', () => {
   it('append each unit once, even when both runs planned against an empty problem', async () => {
     harness = await createHarness()

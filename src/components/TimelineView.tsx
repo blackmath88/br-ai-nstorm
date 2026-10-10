@@ -29,7 +29,11 @@ export const actorLabel = (actorId: string): string =>
     ? actorId.slice('person:'.length).replace(/^\w/, (c) => c.toUpperCase())
     : actorId
 
-function summarise(event: MemoryEvent, label: (id: string) => string): { title: string; detail: string } {
+function summarise(
+  event: MemoryEvent,
+  label: (id: string) => string,
+  conflictPair: (conflictId: string) => string,
+): { title: string; detail: string } {
   const p = event.payload as Record<string, unknown>
   switch (event.eventType) {
     case 'ProblemCreated':
@@ -63,7 +67,7 @@ function summarise(event: MemoryEvent, label: (id: string) => string): { title: 
     case 'ConflictResolved':
       return {
         title: p.action === 'resolve' ? 'Conflict resolved' : 'Conflict dismissed',
-        detail: `${label(event.objectId)} · ${String(p.note ?? '')}`,
+        detail: `${conflictPair(event.objectId)} · ${String(p.note ?? '')}`,
       }
     case 'OrchestrationModeChanged':
       return {
@@ -88,12 +92,22 @@ export function TimelineView({
 
   const labels = new Map(contributions.map((c) => [c.id, c.label]))
   const label = (id: string) => labels.get(id) ?? id
+  // A conflict is named by the two contributions it was accepted between.
+  const pairs = new Map(
+    events
+      .filter((e) => e.eventType === 'ConflictAccepted')
+      .map((e) => {
+        const p = e.payload as { leftObjectId?: string; rightObjectId?: string }
+        return [e.objectId, `${label(String(p.leftObjectId))} ↔ ${label(String(p.rightObjectId))}`] as const
+      }),
+  )
+  const conflictPair = (id: string) => pairs.get(id) ?? 'a conflict'
   const ordered = [...events].reverse()
 
   return (
     <div className="timeline">
       {ordered.map((event) => {
-        const { title, detail } = summarise(event, label)
+        const { title, detail } = summarise(event, label, conflictPair)
         const when = new Date(event.timestamp)
         return (
           <div className="timeline-row" key={event.id}>

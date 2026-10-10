@@ -2,8 +2,8 @@ import type { MemoryEvent } from '../server/domain/events.js'
 import { staleWrite, type EventRepository } from '../server/persistence/repository.js'
 
 interface EventLogStub {
-  append(events: MemoryEvent[], ifVersion?: number): Promise<void | { stale: true; expected: number; actual: number }>
-  version(): Promise<number>
+  append(events: MemoryEvent[], ifVersion?: number, scope?: string): Promise<void | { stale: true; expected: number; actual: number }>
+  version(problemId?: string): Promise<number>
   appendIfEmpty(events: MemoryEvent[]): Promise<boolean>
   read(problemId?: string): Promise<MemoryEvent[]>
 }
@@ -35,11 +35,11 @@ export function createDurableEventRepository(namespace: EventLogNamespace): Dura
     // The version check runs inside the Durable Object, where requests are
     // serialised, so check-then-append cannot interleave with another write.
     append: async (events, options) => {
-      const result = await log().append(events, options?.ifVersion)
+      const result = await log().append(events, options?.ifVersion, options?.scope)
       // Errors do not survive RPC as DomainErrors; the object reports them as values.
       if (result?.stale) throw staleWrite(result.expected, result.actual)
     },
-    version: () => log().version(),
+    version: (problemId) => log().version(problemId),
     appendIfEmpty: (events) => log().appendIfEmpty(events),
     read: (problemId) => log().read(problemId),
   }

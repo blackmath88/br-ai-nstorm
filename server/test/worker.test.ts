@@ -25,14 +25,13 @@ import { structured, structuredError } from './harness.js'
 function memoryEnv(): WorkerEnv {
   let events: MemoryEvent[] = []
   const stub = {
-    async append(next: MemoryEvent[], ifVersion?: number) {
-      if (ifVersion !== undefined && ifVersion !== events.length) {
-        return { stale: true as const, expected: ifVersion, actual: events.length }
-      }
+    async append(next: MemoryEvent[], ifVersion?: number, scope?: string) {
+      const actual = scope === undefined ? events.length : events.filter((e) => e.problemId === scope).length
+      if (ifVersion !== undefined && ifVersion !== actual) return { stale: true as const, expected: ifVersion, actual }
       events = [...events, ...next]
     },
-    async version() {
-      return events.length
+    async version(problemId?: string) {
+      return problemId === undefined ? events.length : events.filter((e) => e.problemId === problemId).length
     },
     async appendIfEmpty(next: MemoryEvent[]) {
       if (events.length > 0) return false
@@ -217,6 +216,23 @@ describe('Durable Object event log', () => {
     expect(storage.gets).toBe(after)
     expect(storage.data.has('events')).toBe(false)
     expect(storage.data.get('seq')).toBe(1)
+  })
+
+  it('keeps per-problem counters, and backfills them for logs written before they existed', async () => {
+    const { storage, log: eventLog } = await log()
+    // A v0.4 layout: per-event keys and a seq, but no per-problem counters.
+    storage.data.set('e:000000000001', event(1, 'a'))
+    storage.data.set('e:000000000002', event(2, 'b'))
+    storage.data.set('e:000000000003', event(3, 'a'))
+    storage.data.set('seq', 3)
+    expect(await eventLog.version('a')).toBe(2)
+    expect(await eventLog.version('b')).toBe(1)
+    expect(await eventLog.version()).toBe(3)
+    await eventLog.append([event(4, 'b')])
+    expect(await eventLog.version('b')).toBe(2)
+    // A scoped check ignores other problems' writes.
+    expect(await eventLog.append([event(5, 'a')], 2, 'a')).toBeUndefined()
+    expect(await eventLog.append([event(6, 'a')], 2, 'a')).toEqual({ stale: true, expected: 2, actual: 3 })
   })
 
   it('appendIfEmpty installs once and only into an empty log', async () => {

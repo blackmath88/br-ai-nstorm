@@ -15,7 +15,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import type { MemoryEvent } from '../domain/events.js'
-import { staleWrite, type EventRepository } from './repository.js'
+import { countIn, staleWrite, type EventRepository } from './repository.js'
 
 export interface JsonRepositoryOptions {
   file: string
@@ -63,8 +63,9 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
     append: (events, options) =>
       enqueue(async () => {
         const current = await loadUnsafe()
-        if (options?.ifVersion !== undefined && options.ifVersion !== current.length) {
-          throw staleWrite(options.ifVersion, current.length)
+        if (options?.ifVersion !== undefined) {
+          const actual = countIn(current, options.scope)
+          if (options.ifVersion !== actual) throw staleWrite(options.ifVersion, actual)
         }
         if (events.length === 0) return
         const next = [...current, ...events]
@@ -78,7 +79,7 @@ export function createJsonRepository(options: JsonRepositoryOptions): EventRepos
         return problemId ? events.filter((event) => event.problemId === problemId) : [...events]
       }),
 
-    version: () => enqueue(async () => (await loadUnsafe()).length),
+    version: (problemId) => enqueue(async () => countIn(await loadUnsafe(), problemId)),
   }
 }
 
@@ -87,16 +88,17 @@ export function createMemoryRepository(seed: MemoryEvent[] = []): EventRepositor
   let events = [...seed]
   return {
     async append(next, options) {
-      if (options?.ifVersion !== undefined && options.ifVersion !== events.length) {
-        throw staleWrite(options.ifVersion, events.length)
+      if (options?.ifVersion !== undefined) {
+        const actual = countIn(events, options.scope)
+        if (options.ifVersion !== actual) throw staleWrite(options.ifVersion, actual)
       }
       events = [...events, ...next]
     },
     async read(problemId) {
       return problemId ? events.filter((event) => event.problemId === problemId) : [...events]
     },
-    async version() {
-      return events.length
+    async version(problemId) {
+      return countIn(events, problemId)
     },
   }
 }

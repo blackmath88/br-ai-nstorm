@@ -75,9 +75,10 @@ export function createImportService(deps: ServiceDeps): ImportService {
     // Planned against the whole log and appended only if nothing changed in
     // between, so two overlapping pushes cannot both add the same units.
     apply: (actor, raw) =>
-      withFreshState(deps, async (ifVersion) => {
+      // Unscoped: an import plans against the whole log and may touch several problems.
+      withFreshState(deps, undefined, async (guard) => {
         const { events, report } = await plan(actor, raw)
-        if (events.length > 0) await deps.repository.append(events, { ifVersion })
+        if (events.length > 0) await deps.repository.append(events, guard)
         return report
       }),
   }

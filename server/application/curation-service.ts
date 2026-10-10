@@ -9,7 +9,7 @@ import { makeEvent } from '../domain/events.js'
 import type { ConflictRecord, CurationProposal, RelationRecord } from '../domain/types.js'
 import { notFound, invalid } from '../domain/errors.js'
 import { assertMayResolveConflict, assertMayReview } from '../domain/policies.js'
-import { assertAcceptableAsConflict, sameConflictPair } from '../domain/conflicts.js'
+import { assertAcceptableAsConflict, nextStatus, sameConflictPair } from '../domain/conflicts.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { loadState, withFreshState, type ServiceDeps } from './support.js'
 
@@ -47,7 +47,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
     // Review is read-decide-append. Two people accepting the same proposal at
     // once must not both succeed: the second re-reads, finds it reviewed, and
     // gets the "already been reviewed" error.
-    accept: (actor, input) => withFreshState(deps, async (ifVersion) => {
+    accept: (actor, input) => withFreshState(deps, input.problemId, async (guard) => {
       const { state, proposal } = await findProposal(input.problemId, input.proposalId)
       assertMayReview(actor, proposal)
 
@@ -74,7 +74,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
             confidence: proposal.confidence,
           },
         })
-        await deps.repository.append([event], { ifVersion })
+        await deps.repository.append([event], guard)
 
         return {
           proposal: { ...proposal, status: 'accepted', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
@@ -111,7 +111,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
         eventType: 'RelationAccepted',
         payload: { proposalId: proposal.id, sourceId: proposal.sourceId, targetId, relationKind },
       })
-      await deps.repository.append([event], { ifVersion })
+      await deps.repository.append([event], guard)
 
       return {
         proposal: { ...proposal, status: 'accepted', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
@@ -128,7 +128,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
       }
     }),
 
-    reject: (actor, input) => withFreshState(deps, async (ifVersion) => {
+    reject: (actor, input) => withFreshState(deps, input.problemId, async (guard) => {
       const { proposal } = await findProposal(input.problemId, input.proposalId)
       assertMayReview(actor, proposal)
 
@@ -139,7 +139,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
         eventType: proposal.kind === 'conflict' ? 'ConflictRejected' : 'RelationRejected',
         payload: { proposalId: proposal.id, ...(input.reason ? { reason: input.reason } : {}) },
       })
-      await deps.repository.append([event], { ifVersion })
+      await deps.repository.append([event], guard)
 
       return {
         proposal: { ...proposal, status: 'rejected', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
@@ -147,7 +147,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
     }),
 
     resolveConflict: (actor, input) =>
-      withFreshState(deps, async (ifVersion) => {
+      withFreshState(deps, input.problemId, async (guard) => {
         const state = await loadState(deps, input.problemId)
         const conflict = state.conflicts.find((c) => c.id === input.conflictId)
         if (!conflict) throw notFound('Conflict', input.conflictId)
@@ -159,10 +159,10 @@ export function createCurationService(deps: ServiceDeps): CurationService {
           eventType: 'ConflictResolved',
           payload: { action, note },
         })
-        await deps.repository.append([event], { ifVersion })
+        await deps.repository.append([event], guard)
         return {
           ...conflict,
-          status: action === 'resolve' ? 'resolved' : 'dismissed',
+          status: nextStatus(conflict.status, action),
           resolvedBy: actor.actorId,
           resolvedAt: event.timestamp,
           resolutionNote: note,

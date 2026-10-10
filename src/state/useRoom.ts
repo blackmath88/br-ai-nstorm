@@ -59,7 +59,8 @@ export interface Room {
   }) => Promise<void>
   review: (proposalId: string, accept: boolean, reason?: string) => Promise<void>
   setOrchestration: (mode: OrchestrationMode, reason?: string) => Promise<void>
-  evaluate: (targetId: string, stance: Stance, note?: string) => Promise<void>
+  /** Resolves true when recorded, so a form can keep its input on failure. */
+  evaluate: (targetId: string, stance: Stance, note?: string) => Promise<boolean>
   resolveConflict: (conflictId: string, action: 'resolve' | 'dismiss', note: string) => Promise<boolean>
   supersede: (contributionId: string, supersededBy: string, reason?: string) => Promise<void>
   /** When the last change made by someone else was picked up automatically. */
@@ -113,12 +114,27 @@ export function useRoom(): Room {
   /** Tracks the newest request so a slow response cannot overwrite a newer one. */
   const requestId = useRef(0)
 
+  /**
+   * Busy is a count of operations in flight, not a flag any one of them can
+   * clear: a quiet background reload overlapping a visible one must not leave
+   * the room stuck disabled.
+   */
+  const inFlight = useRef(0)
+  const begin = useCallback(() => {
+    inFlight.current += 1
+    setBusy(true)
+  }, [])
+  const end = useCallback(() => {
+    inFlight.current = Math.max(0, inFlight.current - 1)
+    if (inFlight.current === 0) setBusy(false)
+  }, [])
+
   const [liveAt, setLiveAt] = useState<string | null>(null)
 
   const loadProblem = useCallback(
     async (token: string, id: string, options: { quiet?: boolean } = {}) => {
       const seq = ++requestId.current
-      if (!options.quiet) setBusy(true)
+      if (!options.quiet) begin()
       try {
         // Version first: if something lands mid-read, the next poll sees a
         // newer version and reads again, rather than the change going unseen.
@@ -141,17 +157,21 @@ export function useRoom(): Room {
           orchestrationOptions: orchestration.options,
           version,
         })
-        setError(null)
+        // A background reload neither shows nor clears errors: a banner the
+        // user has not read yet must survive someone else's write.
+        if (!options.quiet) setError(null)
         setPhase('ready')
       } catch (err) {
         if (seq !== requestId.current) return
+        // A failed background reload keeps the room on screen; the next poll retries.
+        if (options.quiet) return
         setError(message(err))
         setPhase('error')
       } finally {
-        if (seq === requestId.current && !options.quiet) setBusy(false)
+        if (!options.quiet) end()
       }
     },
-    [],
+    [begin, end],
   )
 
   // Bootstrap: roster, restored session, problem list.
@@ -196,7 +216,7 @@ export function useRoom(): Room {
 
   const signIn = useCallback(
     async (participantId: string) => {
-      setBusy(true)
+      begin()
       setError(null)
       try {
         const next = await api.startSession(participantId)
@@ -213,10 +233,10 @@ export function useRoom(): Room {
         setError(message(err))
         setPhase('error')
       } finally {
-        setBusy(false)
+        end()
       }
     },
-    [loadProblem, problemId],
+    [begin, end, loadProblem, problemId],
   )
 
   const selectProblem = useCallback(
@@ -232,78 +252,15 @@ export function useRoom(): Room {
     if (session && problemId) await loadProblem(session.token, problemId)
   }, [loadProblem, problemId, session])
 
-  const addContribution: Room['addContribution'] = useCallback(
-    async (input) => {
-      if (!session || !problemId) return
-      setBusy(true)
-      try {
-        const result = await api.addContribution(session.token, problemId, input as never)
-        const n = result.proposals.length
-        const dropped = result.dropped.length
-        setNotice(
-          (n === 0
-            ? 'Contribution recorded. No curation proposals.'
-            : `Contribution recorded. ${n} proposal${n === 1 ? '' : 's'} added to the review queue.`) +
-            (dropped > 0 ? ` ${dropped} AI proposal${dropped === 1 ? ' was' : 's were'} not accepted: ${result.dropped[0].reason}` : ''),
-        )
-        setError(null)
-        await loadProblem(session.token, problemId)
-      } catch (err) {
-        setError(message(err))
-      } finally {
-        setBusy(false)
-      }
-    },
-    [loadProblem, problemId, session],
-  )
-
-  const review: Room['review'] = useCallback(
-    async (proposalId, accept, reason) => {
-      if (!session || !problemId) return
-      setBusy(true)
-      try {
-        const result = await api.review(session.token, problemId, proposalId, accept, reason)
-        setNotice(
-          accept
-            ? result.conflict
-              ? 'Conflict accepted. It is now canonical and unresolved.'
-              : 'Relation accepted.'
-            : 'Proposal rejected. The decision is recorded in history.',
-        )
-        setError(null)
-        await loadProblem(session.token, problemId)
-      } catch (err) {
-        setError(message(err))
-      } finally {
-        setBusy(false)
-      }
-    },
-    [loadProblem, problemId, session],
-  )
-
-  const setOrchestration: Room['setOrchestration'] = useCallback(
-    async (mode, reason) => {
-      if (!session || !problemId) return
-      setBusy(true)
-      try {
-        await api.setOrchestration(session.token, problemId, mode, reason)
-        setNotice(`Orchestration switched to “${mode}”. The change is recorded in history.`)
-        setError(null)
-        await loadProblem(session.token, problemId)
-      } catch (err) {
-        setError(message(err))
-      } finally {
-        setBusy(false)
-      }
-    },
-    [loadProblem, problemId, session],
-  )
-
-  /** Runs one mutation with the shared busy / notice / error / refresh handling. */
+  /**
+   * Runs one mutation with the shared busy / notice / error / refresh
+   * handling. Every write in the room goes through here, so a fix to that
+   * handling is made once.
+   */
   const mutate = useCallback(
     async (run: (token: string, problemId: string) => Promise<string>): Promise<boolean> => {
       if (!session || !problemId) return false
-      setBusy(true)
+      begin()
       try {
         setNotice(await run(session.token, problemId))
         setError(null)
@@ -313,19 +270,59 @@ export function useRoom(): Room {
         setError(message(err))
         return false
       } finally {
-        setBusy(false)
+        end()
       }
     },
-    [loadProblem, problemId, session],
+    [begin, end, loadProblem, problemId, session],
+  )
+
+  const addContribution: Room['addContribution'] = useCallback(
+    async (input) => {
+      await mutate(async (token, id) => {
+        const result = await api.addContribution(token, id, input as never)
+        const n = result.proposals.length
+        const dropped = result.dropped.length
+        return (
+          (n === 0
+            ? 'Contribution recorded. No curation proposals.'
+            : `Contribution recorded. ${n} proposal${n === 1 ? '' : 's'} added to the review queue.`) +
+          (dropped > 0 ? ` ${dropped} AI proposal${dropped === 1 ? ' was' : 's were'} not accepted: ${result.dropped[0].reason}` : '')
+        )
+      })
+    },
+    [mutate],
+  )
+
+  const review: Room['review'] = useCallback(
+    async (proposalId, accept, reason) => {
+      await mutate(async (token, id) => {
+        const result = await api.review(token, id, proposalId, accept, reason)
+        return accept
+          ? result.conflict
+            ? 'Conflict accepted. It is now canonical and unresolved.'
+            : 'Relation accepted.'
+          : 'Proposal rejected. The decision is recorded in history.'
+      })
+    },
+    [mutate],
+  )
+
+  const setOrchestration: Room['setOrchestration'] = useCallback(
+    async (mode, reason) => {
+      await mutate(async (token, id) => {
+        await api.setOrchestration(token, id, mode, reason)
+        return `Orchestration switched to “${mode}”. The change is recorded in history.`
+      })
+    },
+    [mutate],
   )
 
   const evaluate: Room['evaluate'] = useCallback(
-    async (targetId, stance, note) => {
-      await mutate(async (token, id) => {
+    (targetId, stance, note) =>
+      mutate(async (token, id) => {
         await api.evaluate(token, id, targetId, stance, note)
         return `Recorded your judgement: ${stance.replace('_', ' ')}. It replaces any earlier one of yours.`
-      })
-    },
+      }),
     [mutate],
   )
 

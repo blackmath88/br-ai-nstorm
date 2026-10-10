@@ -11,11 +11,17 @@ import { conflictError } from '../domain/errors.js'
 
 export interface AppendOptions {
   /**
-   * Optimistic concurrency: append only if the whole log still holds exactly
-   * this many events — i.e. nothing was written since the caller read it.
-   * Otherwise reject with `StaleWriteError` and write nothing.
+   * Optimistic concurrency: append only if the log (or, with `scope`, one
+   * problem's part of it) still holds exactly this many events — i.e. nothing
+   * relevant was written since the caller read it. Otherwise reject with a
+   * stale-write conflict and write nothing.
    */
   ifVersion?: number
+  /**
+   * The problem `ifVersion` refers to. Scoped checks keep a busy room's
+   * unrelated activity from invalidating a decision about one problem.
+   */
+  scope?: string
 }
 
 export interface EventRepository {
@@ -23,9 +29,16 @@ export interface EventRepository {
   append(events: MemoryEvent[], options?: AppendOptions): Promise<void>
   /** Reads the log, optionally filtered to one problem, in append order. */
   read(problemId?: string): Promise<MemoryEvent[]>
-  /** The whole log's length. Monotonic; the token `ifVersion` compares against. */
-  version(): Promise<number>
+  /**
+   * Event count for the whole log, or for one problem. Monotonic; the token
+   * `ifVersion` compares against. Must be cheap: clients poll it.
+   */
+  version(problemId?: string): Promise<number>
 }
+
+/** Event count of `events` for a scope (a problem) or for the whole log. */
+export const countIn = (events: readonly MemoryEvent[], scope?: string): number =>
+  scope === undefined ? events.length : events.reduce((n, e) => (e.problemId === scope ? n + 1 : n), 0)
 
 export const STALE_WRITE = 'stale_write'
 
