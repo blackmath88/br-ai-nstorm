@@ -192,6 +192,27 @@ describe('Durable Object event log', () => {
     expect(storage.data.has('events')).toBe(false)
   })
 
+  it('keeps a multi-batch append all-or-nothing', async () => {
+    const { storage, log: eventLog } = await log()
+    await eventLog.append([event(0)])
+    storage.failOnPut = storage.puts + 2 // fail on the second 128-key batch
+    await expect(eventLog.append(Array.from({ length: 200 }, (_, i) => event(i + 1)))).rejects.toThrow(/injected/)
+    expect((await eventLog.read()).map((e) => e.id)).toEqual(['evt_0'])
+    expect(storage.data.get('seq')).toBe(1)
+  })
+
+  it('checks for the legacy value once per instance, and migrates atomically', async () => {
+    const { storage, log: eventLog } = await log()
+    storage.data.set('events', [event(1)])
+    await eventLog.read()
+    const after = storage.gets
+    await eventLog.read()
+    await eventLog.read()
+    expect(storage.gets).toBe(after)
+    expect(storage.data.has('events')).toBe(false)
+    expect(storage.data.get('seq')).toBe(1)
+  })
+
   it('appendIfEmpty installs once and only into an empty log', async () => {
     const { log: eventLog } = await log()
     expect(await eventLog.appendIfEmpty([event(1)])).toBe(true)

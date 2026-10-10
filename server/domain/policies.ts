@@ -64,14 +64,20 @@ export function assertMayReview(actor: ActorContext, proposal: CurationProposal)
  */
 export function assertMayChangeOrchestration(
   actor: ActorContext,
-  input: { from: OrchestrationMode; to: unknown; apiAvailable: boolean },
+  input: {
+    from: OrchestrationMode
+    to: unknown
+    apiAvailable: boolean
+    /** False while the problem only follows a default; then re-selecting it pins it. */
+    pinned: boolean
+  },
 ): OrchestrationMode {
   assertHumanActor(actor, 'change orchestration mode')
   if (typeof input.to !== 'string' || !(ORCHESTRATION_MODES as string[]).includes(input.to)) {
     throw invalid(`Unknown orchestration mode "${String(input.to)}".`, { allowed: ORCHESTRATION_MODES })
   }
   const to = input.to as OrchestrationMode
-  if (to === input.from) throw invalid(`Orchestration is already "${to}".`)
+  if (to === input.from && input.pinned) throw invalid(`Orchestration is already "${to}".`)
   if (to === 'api' && !input.apiAvailable) {
     throw invalid('API orchestration is not configured on this server. Set a curator key first.', {
       allowed: ORCHESTRATION_MODES.filter((mode) => mode !== 'api'),

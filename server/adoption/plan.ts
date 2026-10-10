@@ -80,11 +80,6 @@ export function stableHash(input: string): string {
   return fnv(0x811c9dc5) + fnv(0x01000193 ^ 0x5bd1e995)
 }
 
-/** Recovers the repository path from an imported unit's `sourceDetail` (`repo@rev:path#L5-L7 · …`). */
-export function importedPath(sourceDetail: string | undefined): string | undefined {
-  return /^[^:]*:(.+?)#L\d+/.exec(sourceDetail ?? '')?.[1]
-}
-
 export const unitId = (problemId: string, path: string, text: string) =>
   `${problemId}:src:${stableHash(`${problemId}\u0000${path}\u0000${text}`)}`
 
@@ -202,6 +197,15 @@ export function planImport(input: {
         ]
           .filter(Boolean)
           .join(' · '),
+        sourceRef: {
+          ...(manifest.repository ? { repository: manifest.repository } : {}),
+          ...(revision ? { revision } : {}),
+          path: unit.path,
+          startLine: unit.startLine,
+          endLine: unit.endLine,
+          ...(unit.section ? { section: unit.section } : {}),
+          ...(unit.url ? { url: unit.url } : {}),
+        },
         endorsement: 'participant_review_required',
         timestamp: deps.clock.now(),
       }
@@ -235,7 +239,7 @@ export function planImport(input: {
           c.status === 'active' &&
           c.id.startsWith(`${space.id}:src:`) &&
           !current.has(c.id) &&
-          readPaths.has(importedPath(c.provenance.sourceDetail) ?? ''),
+          readPaths.has(c.provenance.sourceRef?.path ?? ''),
       )
       .map((c) => ({
         id: c.id,

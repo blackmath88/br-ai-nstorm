@@ -41,7 +41,8 @@ behalf of* that participant (`prov:actedOnBehalfOf`) — and **only another
 participant may review it**. There is no silent fallback to the paid curator.
 Deployments that relied on the server curator before v0.4 set
 `BRAINSTORM_DEFAULT_ORCHESTRATION=api` to keep it for problems nobody has
-switched.
+switched. Selecting the mode a problem only defaults to pins it, so a later
+change of deployment default cannot move it silently.
 
 **Cheap reads for LLM clients.** `get_problem_overview` (ids, kinds, labels,
 provenance — no bodies), `get_contributions` (≤ 20 full texts by id) and
@@ -343,7 +344,7 @@ scripts/brainstorm.ts  adoption CLI: init · build · preview · push
 
 ## Tests
 
-`npm test` — 115 tests across eight files. `npm run typecheck` covers the
+`npm test` — 120 tests across eight files. `npm run typecheck` covers the
 frontend, the server and the Worker.
 
 The decisive one is `server/test/integration.test.ts`: Kai contributes over

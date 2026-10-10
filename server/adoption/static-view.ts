@@ -23,13 +23,16 @@ const SECTIONS: Array<{ kind: ContributionKind; title: string }> = [
 const escape = (text: string) =>
   text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
-/** Pulls the link and the location back out of an imported contribution's provenance. */
+/** Location, link and section of an imported contribution. */
 function source(c: ContributionRecord): { where: string; url?: string; section?: string } {
-  const parts = (c.provenance.sourceDetail ?? '').split(' · ')
-  const url = parts.find((p) => p.startsWith('https://'))
-  const section = parts.find((p) => p.startsWith('§ '))?.slice(2)
-  const where = parts[0]?.replace(/^[^:]+:/, '') ?? ''
-  return { where, ...(url ? { url } : {}), ...(section ? { section } : {}) }
+  const ref = c.provenance.sourceRef
+  if (!ref) return { where: c.provenance.sourceDetail ?? '' }
+  const lines = ref.startLine === ref.endLine ? `#L${ref.startLine}` : `#L${ref.startLine}-L${ref.endLine}`
+  return {
+    where: `${ref.path}${lines}`,
+    ...(ref.url ? { url: ref.url } : {}),
+    ...(ref.section ? { section: ref.section } : {}),
+  }
 }
 
 function card(c: ContributionRecord): string {

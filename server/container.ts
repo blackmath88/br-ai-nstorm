@@ -40,8 +40,11 @@ export interface BuildOptions {
   auth?: PrototypeAuth
   /** Skip importing the prototype problem data. Tests that build their own history set this. */
   seed?: boolean
-  /** Mode for problems nobody has switched yet; see `ServiceDeps.defaultOrchestration`. */
-  defaultOrchestration?: OrchestrationMode
+  /**
+   * Mode for problems nobody has switched yet; see `ServiceDeps.defaultOrchestration`.
+   * `null` means "the domain default, and do not read the environment" — what tests use.
+   */
+  defaultOrchestration?: OrchestrationMode | null
 }
 
 /**
@@ -63,7 +66,8 @@ export async function buildServices(options: BuildOptions = {}): Promise<Service
     await ensureSeedData({ repository, clock, ids })
   }
 
-  const defaultOrchestration = options.defaultOrchestration ?? defaultOrchestrationFromEnv(curator)
+  const defaultOrchestration =
+    options.defaultOrchestration === undefined ? defaultOrchestrationFromEnv(curator) : options.defaultOrchestration
   const deps: ServiceDeps = { repository, clock, ids, curator, ...(defaultOrchestration ? { defaultOrchestration } : {}) }
 
   return {
@@ -112,5 +116,6 @@ export const buildTestServices = (options: BuildOptions = {}) =>
     repository: createMemoryRepository(),
     auth: createPrototypeAuth({ deterministicTokens: true }),
     curator: nullCurator,
+    defaultOrchestration: null,
     ...options,
   })

@@ -49,6 +49,7 @@ export interface AddContributionResult {
     deterministic: number
     ai: number
     participant: number
+    trimmed: number
     aiEnabled: boolean
   }
   /** Participant proposals that were not recorded, each with the reason. */
@@ -196,9 +197,12 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         proposals,
         curator: {
           mode,
-          deterministic: deterministic.length,
-          ai: ai.length,
+          // What was actually recorded from each source, after dedupe and the cap.
+          deterministic: deterministic.filter((draft) => drafts.includes(draft)).length,
+          ai: ai.filter((draft) => drafts.includes(draft)).length,
           participant: screened.drafts.filter((draft) => drafts.includes(draft)).length,
+          /** Curator drafts not recorded because the contribution reached the cap. */
+          trimmed: deterministic.length + ai.length + screened.drafts.length - drafts.length,
           aiEnabled: deps.curator.enabled,
         },
         dropped: screened.dropped,

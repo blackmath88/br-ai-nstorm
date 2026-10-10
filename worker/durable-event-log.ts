@@ -23,15 +23,20 @@ const PUT_BATCH = 128
 const keyFor = (seq: number) => `${EVENT_PREFIX}${String(seq).padStart(12, '0')}`
 
 export class EventLog extends DurableObject {
+  /** Per instance: once the legacy value is gone, it never comes back. */
+  private migrated = false
+
   private async migrateLegacy(): Promise<void> {
+    if (this.migrated) return
     const legacy = await this.ctx.storage.get<MemoryEvent[]>(LEGACY_KEY)
-    if (!legacy) return
-    await this.write(legacy, 0)
-    await this.ctx.storage.delete(LEGACY_KEY)
+    // Rewrite and delete in one transaction, so eviction between the two can
+    // neither lose the log nor leave both copies behind.
+    if (legacy) await this.write(legacy, 0, { deleteLegacy: true })
+    this.migrated = true
   }
 
   /** Writes events after `from` and advances the counter, in one transaction. */
-  private async write(events: MemoryEvent[], from: number): Promise<void> {
+  private async write(events: MemoryEvent[], from: number, options: { deleteLegacy?: boolean } = {}): Promise<void> {
     await this.ctx.storage.transaction(async (txn) => {
       for (let i = 0; i < events.length; i += PUT_BATCH) {
         const entries: Record<string, MemoryEvent> = {}
@@ -41,6 +46,7 @@ export class EventLog extends DurableObject {
         await txn.put(entries)
       }
       await txn.put(SEQ_KEY, from + events.length)
+      if (options.deleteLegacy) await txn.delete(LEGACY_KEY)
     })
   }
 

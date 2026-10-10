@@ -139,7 +139,14 @@ export function createOrchestrationService(deps: ServiceDeps): OrchestrationServ
     async setMode(actor, input) {
       const state = await loadState(deps, input.problemId)
       const from = state.problem.orchestration.mode
-      const to = assertMayChangeOrchestration(actor, { from, to: input.mode, apiAvailable: deps.curator.enabled })
+      const to = assertMayChangeOrchestration(actor, {
+        from,
+        to: input.mode,
+        apiAvailable: deps.curator.enabled,
+        // Selecting the mode a problem merely defaults to pins it, so a later
+        // change of deployment default cannot move it silently.
+        pinned: Boolean(state.problem.orchestration.changedBy),
+      })
       const reason = input.reason?.trim()
 
       const event = makeEvent(deps, {

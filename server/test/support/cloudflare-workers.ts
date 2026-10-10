@@ -7,8 +7,12 @@
 export class MemoryStorage {
   readonly data = new Map<string, unknown>()
   puts = 0
+  gets = 0
+  /** Throw on the n-th multi-key put, to prove writes are transactional. */
+  failOnPut?: number
 
   async get<T>(key: string): Promise<T | undefined> {
+    this.gets += 1
     return structuredClone(this.data.get(key)) as T | undefined
   }
 
@@ -20,6 +24,7 @@ export class MemoryStorage {
     const keys = Object.keys(keyOrEntries)
     if (keys.length > 128) throw new Error('put() accepts at most 128 keys')
     this.puts += 1
+    if (this.failOnPut === this.puts) throw new Error('injected storage failure')
     for (const key of keys) this.data.set(key, structuredClone(keyOrEntries[key]))
   }
 
@@ -32,8 +37,16 @@ export class MemoryStorage {
     return new Map(keys.map((k) => [k, structuredClone(this.data.get(k)) as T]))
   }
 
+  /** All-or-nothing, like the real storage: a throw restores the snapshot. */
   async transaction<T>(closure: (txn: MemoryStorage) => Promise<T>): Promise<T> {
-    return closure(this)
+    const snapshot = new Map(this.data)
+    try {
+      return await closure(this)
+    } catch (error) {
+      this.data.clear()
+      for (const [key, value] of snapshot) this.data.set(key, value)
+      throw error
+    }
   }
 }
 

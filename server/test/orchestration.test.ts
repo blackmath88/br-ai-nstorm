@@ -263,12 +263,16 @@ describe('switching modes', () => {
     expect(updates.updates.some((u) => u.title === 'Orchestration changed')).toBe(true)
   })
 
-  it('rejects unknown modes and no-op switches', async () => {
+  it('rejects unknown modes and no-op switches, but lets a default be pinned once', async () => {
     harness = await createHarness()
     const lea = await harness.actor('Lea')
     await expect(
       harness.services.orchestration.setMode(lea, { problemId: 'campus-ai', mode: 'autopilot' }),
     ).rejects.toMatchObject({ code: 'invalid' })
+    // Selecting the mode a problem merely defaults to records it explicitly...
+    const pinned = await harness.services.orchestration.setMode(lea, { problemId: 'campus-ai', mode: 'participant' })
+    expect(pinned.changedBy).toBe(lea.actorId)
+    // ...after which the same selection is a no-op and refused.
     await expect(
       harness.services.orchestration.setMode(lea, { problemId: 'campus-ai', mode: 'participant' }),
     ).rejects.toMatchObject({ code: 'invalid' })
@@ -467,5 +471,27 @@ describe('review fixes', () => {
     await services.contributions.add(kai, { problemId: 'campus-ai', content: 'Usage-based pricing is fairer.' })
     expect(spy.calls).toBe(1)
     expect((await services.problems.list()).find((p) => p.id === 'campus-ai')?.orchestration.mode).toBe('participant')
+
+    // Pinning the default protects a problem from a later change of default.
+    await services.orchestration.setMode(achim, { problemId: 'basel-heat', mode: 'api' })
+    const after = await buildTestServices({ curator: spy, repository: services.repository, defaultOrchestration: 'deterministic', seed: false })
+    const listed = await after.problems.list()
+    expect(listed.find((p) => p.id === 'basel-heat')?.orchestration.mode).toBe('api')
+    expect(listed.find((p) => p.id === 'research-onboarding')?.orchestration.mode).toBe('deterministic')
+  })
+
+  it('reports per-source counts after the cap', async () => {
+    harness = await createHarness()
+    const kai = await harness.actor('Kai')
+    const state = await harness.services.problems.getState('campus-ai')
+    const targets = state.contributions.filter((c) => c.status === 'active').slice(0, 8)
+    const result = await harness.services.contributions.add(kai, {
+      problemId: 'campus-ai',
+      content: targets.map((c) => c.content).join(' However, ').slice(0, 7000),
+      proposals: targets.map((t) => ({ kind: 'relation', targetId: t.id, reason: 'Model judgement.' })),
+    })
+    const { participant, deterministic, ai } = result.curator
+    expect(participant + deterministic + ai).toBe(result.proposals.length)
+    expect(deterministic).toBe(0)
   })
 })

@@ -366,6 +366,28 @@ describe('review fixes', () => {
     expect(texts.filter((t) => t.includes('long enough'))).toHaveLength(1)
   })
 
+  it('folds a lead-in of any length into the enumeration it introduces, exactly once', () => {
+    const lead = `${'A long framing sentence that sets up who can move the cause in this city. '.repeat(3)}Potential actors:`
+    const doc = `## Actors\n\n${lead}\n\n- Basel-Stadt\n- MeteoSwiss\n`
+    const texts = extractUnits(doc).units.map((u) => u.text)
+    expect(texts).toHaveLength(1)
+    expect(texts[0]).toMatch(/Potential actors: Basel-Stadt; MeteoSwiss$/)
+  })
+
+  it('records a structured source reference', () => {
+    const plan = planImport({ bundle: { manifest, files, revision: 'abc' }, existing: [], deps: deps(), importedBy: 'person:achim' })
+    const call = project(plan.events)!.contributions.find((c) => c.content.startsWith('Turn a level 3'))!
+    expect(call.provenance.sourceRef).toEqual({
+      repository: 'blackmath88/hack-am-rhein',
+      revision: 'abc',
+      path: 'challenges/basel-38/BRAINSTORM.md',
+      startLine: 25,
+      endLine: 26,
+      section: 'Ideas',
+      url: 'https://github.com/blackmath88/hack-am-rhein/blob/abc/challenges/basel-38/BRAINSTORM.md#L25-L26',
+    })
+  })
+
   it('reads owner/name from remotes, including names with dots', () => {
     expect(repositoryFromRemote('https://github.com/acme/hack.am.rhein.git')).toBe('acme/hack.am.rhein')
     expect(repositoryFromRemote('git@github.com:acme/hack.am.rhein.git')).toBe('acme/hack.am.rhein')

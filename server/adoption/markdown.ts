@@ -190,9 +190,9 @@ export function extractUnits(markdown: string): ExtractResult {
     if (block.shape === 'list') {
       const items = block.items!.map((item) => ({ ...item, text: plainText(item.text).replace(/[;,]\s*$/, '') }))
       const prev = blocks[index - 1]
-      // Same predicate the paragraph pass uses, so a lead-in is either folded
-      // here or emitted there — never both.
-      const leadIn = prev && sameSection(prev, block) && isLeadIn(prev) ? prev : undefined
+      // Same predicate the paragraph pass uses (`introducesEnumeration`), so a
+      // lead-in is either folded here or emitted there — never both.
+      const leadIn = prev && introducesEnumeration(prev, block) ? prev : undefined
       const enumeration = isEnumeration(items.map((item) => item.text))
 
       if (enumeration) {
@@ -231,10 +231,12 @@ export function extractUnits(markdown: string): ExtractResult {
       return
     }
 
+    // Carried by the enumeration it introduces, whatever its length (see the list pass).
+    if (next && introducesEnumeration(block, next)) return
+
     if (isLeadIn(block) && next && sameSection(block, next)) {
-      // Carried by the quote or enumeration it introduces (see above)...
+      // Carried by the quote it introduces (see above)...
       if (next.shape === 'quote') return
-      if (next.shape === 'list' && isEnumeration(next.items!.map((item) => plainText(item.text)))) return
       // ...or too slight to stand alone ("Potentially:") before separate
       // items or skipped code. Dropped, but counted, never silently lost.
       if (next.shape === 'code' || next.shape === 'table' || (next.shape === 'list' && text.length < 80)) {
@@ -248,6 +250,16 @@ export function extractUnits(markdown: string): ExtractResult {
 
   return { ...(title ? { title } : {}), units, skipped }
 }
+
+const endsWithColon = (block: Block) => /:\s*$/.test(plainText(block.lines.join(' ')))
+
+/** A paragraph ending in ":" directly before a short enumeration in the same section. */
+const introducesEnumeration = (paragraph: Block, list: Block): boolean =>
+  paragraph.shape === 'paragraph' &&
+  list.shape === 'list' &&
+  sameSection(paragraph, list) &&
+  endsWithColon(paragraph) &&
+  isEnumeration(list.items!.map((item) => plainText(item.text).replace(/[;,]\s*$/, '')))
 
 /** A paragraph that only introduces what follows ("Potential actors:"). */
 const isLeadIn = (block: Block): boolean => {

@@ -117,9 +117,24 @@ export interface Provenance {
   source: ContributionSource
   /** Free-text origin detail: a citation, a model id, an aperture package id. */
   sourceDetail?: string
+  /**
+   * Where in a repository the content came from, for `repo_import`. Structured
+   * so nothing has to parse `sourceDetail` back apart.
+   */
+  sourceRef?: SourceRef
   endorsement: Endorsement
   /** When the contribution entered shared memory. */
   timestamp: string
+}
+
+export interface SourceRef {
+  repository?: string
+  revision?: string
+  path: string
+  startLine: number
+  endLine: number
+  section?: string
+  url?: string
 }
 
 export interface Participant {

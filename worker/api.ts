@@ -26,8 +26,15 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
     headers: { ...CORS, ...headers },
   })
 
+/** Same ceiling as the Node adapter (see MAX_BODY_BYTES in server/http/api.ts). */
+const MAX_BODY_BYTES = 16 * 1024 * 1024
+
 async function readJson(request: Request): Promise<Record<string, unknown>> {
+  const declared = Number(request.headers.get('content-length') ?? '0')
+  if (declared > MAX_BODY_BYTES) throw invalid('Request body is too large.')
   const raw = await request.text()
+  // content-length can be absent (chunked); check what actually arrived too.
+  if (raw.length > MAX_BODY_BYTES) throw invalid('Request body is too large.')
   if (!raw.trim()) return {}
   try {
     const parsed: unknown = JSON.parse(raw)
