@@ -240,6 +240,68 @@ distinctions are the value; the encoding is not.
 
 ---
 
+## v0.4 additions (2026-10-10)
+
+Searched for what the v0.3 list did not cover: remote MCP hosting, and
+deliberation tools that keep extracted claims tied to their sources.
+
+### 8. Cloudflare `agents` / `createMcpHandler` guidance — **pattern adopted, package not added**
+
+- **Solves:** remote MCP servers on Workers.
+- **Active:** yes. Cloudflare's current docs recommend a stateless
+  `createMcpHandler` for new servers and mark `McpAgent` (Durable-Object-backed,
+  stateful) as legacy and feature-frozen.
+- **Licence:** MIT (cloudflare/agents).
+- **Reduces complexity here:** yes, by telling us what *not* to build. Our
+  dependency `@modelcontextprotocol/server@2.0.0` already exports a fetch-shaped
+  `createMcpHandler`, and its `workerd` export condition swaps in a JSON-schema
+  validator that needs no `eval`. So the Worker serves MCP with **no new
+  package** — `worker/mcp.ts` is ~50 lines around the shared factory.
+
+**Do not copy:** `McpAgent`, `WorkerTransport` inside an Agent class, or a
+second Durable Object for MCP sessions. The room's state already lives in the
+event-log object; a stateless handler is the whole requirement.
+
+**Found while adopting it:** our own Worker cached a Durable Object stub across
+requests, which workerd forbids — every request after the first failed. Fixed
+in `worker/durable-repository.ts`; see CLOUDFLARE_DEMO.md.
+
+### 9. AI Objectives Institute — *Talk to the City* — **discipline adopted, no code**
+
+- **Solves:** LLM-assisted analysis of large qualitative input: extract claims,
+  cluster them, and keep every claim linked to the verbatim quote it came from.
+- **Active:** used in Taiwan, by Chatham House, and around UNFCCC negotiations.
+- **Licence:** not confirmed from search results; treated as pattern-only.
+- **Reduces complexity here:** yes, conceptually. It is the clearest precedent
+  for the rule repository adoption is built on: **an extracted item without its
+  source anchor is not trustworthy enough to show.**
+
+**Adopted:** every imported unit carries `path#Lstart-Lend` and a link to those
+lines at the exact revision; the unit text is the author's words, lightly
+de-marked, never paraphrased.
+
+**Deliberately not adopted:** LLM extraction and clustering. Our importer is
+deterministic — kinds come from the author's own headings — because clustering
+is a judgement, and judgements in this system are proposals a person reviews,
+not import steps. Clustering-as-proposal is a possible later curator.
+
+### 10. ArgsBase (EACL 2026 demo) and BCause (Open University) — **research only**
+
+- **Solve:** LLM-moderated deliberation producing argument maps (ArgsBase: a
+  moderator agent coordinating several LLMs; BCause: LLM-drafted maps curated by
+  humans).
+- **Licence / code:** no public repository found in searches.
+- **Relevance:** both confirm the human-curated-AI-proposal pattern; BCause's
+  "LLM drafts, humans curate" is close to our participant orchestration mode.
+- **Do not adopt:** a moderator agent that summarises agreement. Consensus
+  summarisation is an explicit non-goal here.
+
+### 11. Council (`pedrofuentes/council`) — **noted, not used**
+
+- MIT, TypeScript, created 2026-05, ~0 stars: persistent AI expert panels that
+  deliberate and disagree. Agent-panel deliberation rather than human problem
+  memory; too new and too different to depend on.
+
 ## Negative results — recorded so they are not re-searched
 
 Searches across GitHub for *provenance-aware knowledge graph systems*,
@@ -268,6 +330,7 @@ Two conclusions:
 | `@modelcontextprotocol/client@2.0.0` (dev) | real protocol client for `InMemoryTransport` tests | MIT |
 | `vitest` (dev) | already a Vite project; both templates use it; no extra toolchain | MIT |
 | `zod@4` | already a dependency; the SDK's schema path | MIT |
+| *(v0.4)* nothing new | Worker MCP uses the SDK's own fetch handler and `workerd` export condition; adoption needs no YAML parser (JSON manifest) | — |
 
 **Deliberately not added:** Express, Fastify, pino, Postgres, a migration tool,
 Kafka, Neo4j, Redis, an ORM, a DI container. Each was considered against the ten

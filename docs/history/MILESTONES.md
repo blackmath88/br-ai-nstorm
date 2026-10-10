@@ -145,6 +145,50 @@ Architectural boundary at this point:
 > resolved by the server. Attribution cannot be forged by a client or
 > manufactured by a model. AI proposes; a person makes things canonical.
 
+## Milestone 0.4 — Orchestration, remote MCP, adoption (candidate)
+
+Branch: `ccr-00e0be58-t5hpg7` — **not yet preserved as a milestone branch.**
+
+### What changed
+
+- **Who pays for AI judgement became a per-problem choice.** `participant`
+  (default: the contributor's own LLM proposes, the server spends nothing),
+  `api` (the operator's curator key, only after an explicit switch) and
+  `deterministic` (no AI). Switching is a recorded human act.
+- **Participant-made proposals got their own provenance role.** Proposed by
+  `agent:<model>`, on behalf of a participant — who may not review it. Without
+  that rule, moving curation to the contributor would have been self-approval.
+- **LLM clients got cheap reads**: an overview without bodies, bounded fetches
+  by id, and a bounded candidate set per draft.
+- **The Worker serves MCP**, and a latent Worker bug (Durable Object stub reused
+  across requests → `500` after the first request) was found and fixed by
+  running under workerd rather than assuming.
+- **Repositories can adopt Brainstorm without running it** (issue #4): one
+  manifest, a deterministic line-anchored extractor, a static view, and an
+  idempotent import into a room.
+
+### What became canonical
+
+- the orchestration mode, as an event per problem;
+- `onBehalfOf` on proposals, and the no-self-review rule;
+- `repo_import` as a source, `repo:<owner/name>` as a non-person author, and
+  content-addressed import identity.
+
+### What was intentionally not built
+
+- an MCP tool to switch orchestration (it moves cost; a person clicks it);
+- MCP sampling as a way to bill the client (few clients support it, and it would
+  have the server prompting someone else's model);
+- LLM extraction or clustering at import time;
+- automatic supersession of stale imported items;
+- adoption Level 3 (Observstory / Weavr wiring).
+
+Architectural boundary at this point:
+
+> AI judgement is something a problem opts into, from a source it names, and
+> pays for knowingly. Whoever's model proposed something, a different person
+> decides it.
+
 ## Working convention
 
 - `main` — latest coherent version to clone and work from.
