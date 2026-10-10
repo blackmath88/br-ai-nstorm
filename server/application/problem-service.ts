@@ -90,7 +90,7 @@ export interface ProblemService {
    * when it moves. Counts this problem's events, so activity elsewhere in the
    * room does not trigger a refresh.
    */
-  getVersion(problemId: string): Promise<{ problemId: string; version: number; lastEventAt: string | null }>
+  getVersion(problemId: string): Promise<{ problemId: string; version: number }>
   getContributions(problemId: string, ids: string[]): Promise<{ contributions: ContributionRecord[]; missing: string[] }>
 }
 
@@ -235,13 +235,10 @@ export function createProblemService(deps: ServiceDeps): ProblemService {
     },
 
     async getVersion(problemId) {
-      const events = await deps.repository.read(problemId)
-      if (!events.some((e) => e.eventType === 'ProblemCreated')) throw notFound('Problem', problemId)
-      return {
-        problemId,
-        version: events.length,
-        lastEventAt: events.length > 0 ? events[events.length - 1].timestamp : null,
-      }
+      // One counter lookup, not a log read: every open tab calls this every few seconds.
+      const version = await deps.repository.version(problemId)
+      if (version === 0) throw notFound('Problem', problemId)
+      return { problemId, version }
     },
 
     async getCompactState(problemId) {

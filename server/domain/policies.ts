@@ -14,7 +14,8 @@
  * runtime check — that the actor asking for a canonical mutation is a person.
  */
 import type { ActorContext } from '../auth/actor-context.js'
-import type { ContributionRecord, CurationProposal, OrchestrationMode } from './types.js'
+import type { ConflictStatus, ContributionRecord, CurationProposal, OrchestrationMode } from './types.js'
+import { nextStatus } from './conflicts.js'
 import { ORCHESTRATION_MODES } from './types.js'
 import { forbidden, invalid } from './errors.js'
 
@@ -144,16 +145,15 @@ export const EVALUATION_STANCES = ['useful', 'doubtful', 'needs_evidence'] as co
  */
 export function assertMayResolveConflict(
   actor: ActorContext,
-  conflict: { id: string; status: string },
+  conflict: { id: string; status: ConflictStatus },
   input: { action: unknown; note: unknown },
 ): { action: 'resolve' | 'dismiss'; note: string } {
   assertHumanActor(actor, 'close a conflict')
   if (input.action !== 'resolve' && input.action !== 'dismiss') {
     throw invalid('action must be "resolve" or "dismiss".')
   }
-  if (conflict.status !== 'open') {
-    throw invalid(`This conflict is already ${conflict.status}.`, { conflictId: conflict.id })
-  }
+  // The lifecycle rule lives in one place; this only adds who may and the note.
+  nextStatus(conflict.status, input.action)
   const note = typeof input.note === 'string' ? input.note.trim() : ''
   if (note.length < MIN_RESOLUTION_NOTE_LENGTH) {
     throw invalid(

@@ -83,7 +83,12 @@ the ADR-003 Postgres triggers apply here as well.
 
 ## Concurrency
 
-`append(events, ifVersion)` checks the sequence counter inside the object.
+`append(events, ifVersion, scope)` checks a counter inside the object: the
+whole log's `seq`, or with `scope` a per-problem `p:<problemId>` counter, so
+activity on one problem never invalidates a decision about another. The same
+counters make `GET …/version` (what every open tab polls) a single lookup.
+Logs written before the counters existed are backfilled once, which was
+verified under `wrangler dev` against state the previous version wrote.
 Durable Objects serialise requests, so check-then-write cannot interleave
 with another write. A stale write is returned as a value rather than thrown,
 because errors lose their domain detail when they cross the RPC boundary.

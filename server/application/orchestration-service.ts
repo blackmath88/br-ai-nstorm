@@ -136,7 +136,7 @@ export function createOrchestrationService(deps: ServiceDeps): OrchestrationServ
       }
     },
 
-    setMode: (actor, input) => withFreshState(deps, async (ifVersion) => {
+    setMode: (actor, input) => withFreshState(deps, input.problemId, async (guard) => {
       const state = await loadState(deps, input.problemId)
       const from = state.problem.orchestration.mode
       const to = assertMayChangeOrchestration(actor, {
@@ -156,7 +156,7 @@ export function createOrchestrationService(deps: ServiceDeps): OrchestrationServ
         eventType: 'OrchestrationModeChanged',
         payload: { from, to, ...(reason ? { reason } : {}) },
       })
-      await deps.repository.append([event], { ifVersion })
+      await deps.repository.append([event], guard)
 
       return { mode: to, changedBy: actor.actorId, changedAt: event.timestamp, ...(reason ? { reason } : {}) }
     }),

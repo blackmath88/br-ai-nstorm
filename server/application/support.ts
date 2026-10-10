@@ -8,7 +8,7 @@
 import type { Clock, IdSource, MemoryEvent } from '../domain/events.js'
 import { project } from '../domain/projections.js'
 import type { OrchestrationMode, ProblemRecord, ProblemState } from '../domain/types.js'
-import { isStaleWrite, type EventRepository } from '../persistence/repository.js'
+import { isStaleWrite, type AppendOptions, type EventRepository } from '../persistence/repository.js'
 import type { Curator } from '../curation/ai-curator.js'
 import { notFound } from '../domain/errors.js'
 
@@ -61,13 +61,15 @@ export async function loadStateAndEvents(
  */
 export async function withFreshState<T>(
   deps: Pick<ServiceDeps, 'repository'>,
-  decide: (ifVersion: number) => Promise<T>,
+  /** The problem the decision is about; omit only for decisions that read the whole log. */
+  scope: string | undefined,
+  decide: (guard: AppendOptions) => Promise<T>,
   attempts = 4,
 ): Promise<T> {
   for (let attempt = 1; ; attempt++) {
-    const version = await deps.repository.version()
+    const ifVersion = await deps.repository.version(scope)
     try {
-      return await decide(version)
+      return await decide({ ifVersion, ...(scope !== undefined ? { scope } : {}) })
     } catch (error) {
       if (!isStaleWrite(error) || attempt >= attempts) throw error
     }

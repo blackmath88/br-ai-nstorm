@@ -34,7 +34,7 @@ function SelectedActions({
   evaluations: EvaluationRecord[]
   actorId: string | null
   candidates: ContributionRecord[]
-  onEvaluate: (stance: Stance, note?: string) => void
+  onEvaluate: (stance: Stance, note?: string) => Promise<boolean>
   onSupersede: (supersededBy: string, reason?: string) => void
   busy: boolean
 }) {
@@ -63,8 +63,10 @@ function SelectedActions({
             className={mine?.stance === stance ? 'active' : ''}
             disabled={busy || !actorId || selected.status !== 'active'}
             onClick={() => {
-              onEvaluate(stance, note.trim() || undefined)
-              setNote('')
+              // Keep the note if recording fails, so nothing typed is lost.
+              void onEvaluate(stance, note.trim() || undefined).then((recorded) => {
+                if (recorded) setNote('')
+              })
             }}
           >
             {label}
@@ -140,7 +142,7 @@ export function SideRail({
   evaluations: EvaluationRecord[]
   contributions: ContributionRecord[]
   actorId: string | null
-  onEvaluate: (targetId: string, stance: Stance, note?: string) => void
+  onEvaluate: (targetId: string, stance: Stance, note?: string) => Promise<boolean>
   onSupersede: (contributionId: string, supersededBy: string, reason?: string) => void
   draft: string
   setDraft: (value: string) => void
