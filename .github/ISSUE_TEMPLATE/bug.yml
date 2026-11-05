@@ -1,0 +1,27 @@
+name: Bug
+description: Something behaves differently from what the docs or tests say
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps, the command or UI action, and what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options: [Node (dev:server), Cloudflare Worker, stdio MCP, Static view, Other]
+  - type: input
+    id: version
+    attributes:
+      label: Commit or tag
+      placeholder: e.g. main @ abc1234, v0.4.0

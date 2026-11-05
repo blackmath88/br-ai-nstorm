@@ -96,11 +96,9 @@ repository and the room from becoming two competing versions of the same fact:
    reported as **stale** and left alone: not edited, not superseded, not
    removed. Supersession is a human act. A file missing from an import is
    reported as missing, and what came from it is *not* marked stale.
-   Overlapping imports are harmless to state: replay keeps the first
-   `ProblemCreated` and the first `ContributionAdded` for an id. *Known
-   limitation:* the raw log still records the duplicate events, so the
-   activity feed can list them twice. Preventing that needs an
-   expected-version append on the repository port, which has not been built.
+   Overlapping imports cannot duplicate anything: an import is appended
+   only if the log is unchanged since it was planned, and otherwise
+   re-planned on fresh state.
 3. **Imported text cannot be edited in the room.** Its author is the
    repository, so no participant passes the author-only edit rule. A
    correction is made in the repository and arrives with the next import.

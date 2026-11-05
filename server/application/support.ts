@@ -8,7 +8,7 @@
 import type { Clock, IdSource, MemoryEvent } from '../domain/events.js'
 import { project } from '../domain/projections.js'
 import type { OrchestrationMode, ProblemRecord, ProblemState } from '../domain/types.js'
-import type { EventRepository } from '../persistence/repository.js'
+import { isStaleWrite, type AppendOptions, type EventRepository } from '../persistence/repository.js'
 import type { Curator } from '../curation/ai-curator.js'
 import { notFound } from '../domain/errors.js'
 
@@ -50,6 +50,30 @@ export async function loadStateAndEvents(
   const state = project(events)
   if (!state) throw notFound('Problem', problemId)
   return { state: { ...state, problem: withDefaultOrchestration(deps, state.problem) }, events }
+}
+
+/**
+ * Read, decide, append — and if someone else appended in between, decide
+ * again on fresh state. The version is taken *before* the read, so a write
+ * that lands between the two can only cause a spurious retry, never a lost
+ * update. A decision that is no longer valid on fresh state (e.g. the
+ * proposal was reviewed meanwhile) fails with its own domain error.
+ */
+export async function withFreshState<T>(
+  deps: Pick<ServiceDeps, 'repository'>,
+  /** The problem the decision is about; omit only for decisions that read the whole log. */
+  scope: string | undefined,
+  decide: (guard: AppendOptions) => Promise<T>,
+  attempts = 4,
+): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    const ifVersion = await deps.repository.version(scope)
+    try {
+      return await decide({ ifVersion, ...(scope !== undefined ? { scope } : {}) })
+    } catch (error) {
+      if (!isStaleWrite(error) || attempt >= attempts) throw error
+    }
+  }
 }
 
 export const byTimeThenId = (a: MemoryEvent, b: MemoryEvent): number =>

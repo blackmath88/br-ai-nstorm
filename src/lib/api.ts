@@ -10,22 +10,25 @@
  * participant name as proof of who it is; the server resolves the token.
  */
 import type {
-  ConflictRecord, ContributionKind, ContributionRecord, CurationProposal, OrchestrationMode,
+  ConflictRecord, ContributionKind, ContributionRecord, CurationProposal, EvaluationRecord, OrchestrationMode,
   OrchestrationSetting, Participant, ProblemRecord, ProblemState, RelationRecord,
 } from '../../server/domain/types'
 import type { OrchestrationOption, ContributionContext } from '../../server/application/orchestration-service'
 import type { AddContributionResult } from '../../server/application/contribution-service'
 import type { ParticipantProposalInput } from '../../server/curation/participant'
+import type { FieldReport } from '../../server/application/report-service'
 import type { MemoryEvent } from '../../server/domain/events'
 import type { ActorContext } from '../../server/auth/actor-context'
 import type { ProblemUpdates } from '../../server/application/problem-service'
 
 export type {
-  ConflictRecord, ContributionKind, ContributionRecord, CurationProposal,
+  ConflictRecord, ContributionKind, ContributionRecord, CurationProposal, EvaluationRecord,
   Participant, ProblemRecord, ProblemState, RelationRecord, MemoryEvent, ActorContext, ProblemUpdates,
   OrchestrationMode, OrchestrationSetting, OrchestrationOption, ContributionContext, AddContributionResult,
-  ParticipantProposalInput,
+  ParticipantProposalInput, FieldReport,
 }
+
+export type Stance = 'useful' | 'doubtful' | 'needs_evidence'
 
 /** Same-origin by default; the Vite dev server proxies /api to the backend. */
 const BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -138,6 +141,34 @@ export const api = {
     request<AddContributionResult>(
       `/api/problems/${encodeURIComponent(problemId)}/contributions`,
       { token, method: 'POST', body },
+    ),
+
+  version: (token: string, problemId: string) =>
+    request<{ problemId: string; version: number; lastEventAt: string | null }>(
+      `/api/problems/${encodeURIComponent(problemId)}/version`,
+      { token },
+    ),
+
+  report: (token: string, problemId: string) =>
+    request<FieldReport>(`/api/problems/${encodeURIComponent(problemId)}/report`, { token }),
+
+  evaluate: (token: string, problemId: string, targetId: string, stance: Stance, note?: string) =>
+    request<{ evaluation: unknown }>(`/api/problems/${encodeURIComponent(problemId)}/evaluations`, {
+      token,
+      method: 'POST',
+      body: { targetId, stance, ...(note ? { note } : {}) },
+    }),
+
+  resolveConflict: (token: string, problemId: string, conflictId: string, action: 'resolve' | 'dismiss', note: string) =>
+    request<{ conflict: ConflictRecord }>(
+      `/api/problems/${encodeURIComponent(problemId)}/conflicts/${encodeURIComponent(conflictId)}/resolve`,
+      { token, method: 'POST', body: { action, note } },
+    ),
+
+  supersede: (token: string, problemId: string, contributionId: string, supersededBy: string, reason?: string) =>
+    request<{ contribution: ContributionRecord }>(
+      `/api/problems/${encodeURIComponent(problemId)}/contributions/${encodeURIComponent(contributionId)}/supersede`,
+      { token, method: 'POST', body: { supersededBy, ...(reason ? { reason } : {}) } },
     ),
 
   review: (token: string, problemId: string, proposalId: string, accept: boolean, reason?: string) =>

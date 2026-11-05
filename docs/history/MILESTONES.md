@@ -2,11 +2,11 @@
 
 This repository uses **main as the newest coherent runnable version**.
 
-Older meaningful stages are preserved as milestone branches so the evolution of the idea remains inspectable and runnable without keeping stale development branches as the primary history mechanism.
+Older meaningful stages are preserved as **annotated tags** (`v0.1.0` … `v0.4.0`), so the evolution of the idea remains inspectable and runnable (`git checkout v0.2.0`) without keeping long-lived branches around. The branch-to-tag mapping is in [docs/legacy/README.md](../legacy/README.md).
 
 ## Milestone 0.1 — React canonical state
 
-Branch: `milestone/react-canonical-v0.1`
+Tag: `v0.1.0` (was branch `milestone/react-canonical-v0.1`)
 
 What it proves:
 
@@ -24,7 +24,7 @@ Architectural boundary at this point:
 
 ## Milestone 0.2 — MCP shared memory
 
-Branch: `milestone/mcp-shared-memory-v0.2`
+Tag: `v0.2.0` (was branch `milestone/mcp-shared-memory-v0.2`)
 
 What it adds:
 
@@ -45,7 +45,7 @@ Architectural boundary at this point:
 
 ## Milestone 0.3 — Real Shared Room
 
-Branch: `milestone/real-shared-room-v0.3` (includes the Cloudflare visual demo).
+Tag: `v0.3.0` (was branch `milestone/real-shared-room-v0.3`; includes the Cloudflare visual demo).
 
 The goal was narrow on purpose: make ONE existing problem work end to end
 through the real backend, with several participants on two transports, and add
@@ -189,18 +189,54 @@ Architectural boundary at this point:
 > pays for knowingly. Whoever's model proposed something, a different person
 > decides it.
 
+## Milestone 0.5 — Ready for the field test
+
+Current `main`. v0.4 is preserved as tag `v0.4.0`. Also folded in from the
+unmerged `feature/demo-scenario` branch: the scripted demo scenario
+(`npm run demo`), a fix for cross-process blindness in the JSON log, and a
+consequence-ordered curation queue.
+
+### What changed
+
+- Conflicts can be **closed** (resolved or dismissed), only by a person and
+  only with a note. Until now an accepted conflict could never leave `open`.
+- **Evaluations** got a UI and an MCP tool. Each person has one standing
+  judgement per contribution, and the log keeps every change of mind. Doubt
+  and requests for evidence feed *think next*.
+- **Liveness** by polling a per-problem version token. No push yet.
+- **Optimistic concurrency** on the event log. Found necessary by asking what
+  happens when three people accept the same proposal in the same second: the
+  old path recorded it three times.
+- **Field report**, so the session produces numbers rather than impressions.
+  The question it is built to answer is whether participant-mode curation is
+  good enough to justify its cost model.
+- The Node and Worker REST adapters now share **one router**.
+
+### What was intentionally not built
+
+- WebSocket or SSE push (polling is enough for three people);
+- OIDC (it needs a choice of provider);
+- MCP tools for closing conflicts and superseding (they retire things from the shared view; a person does them in the room);
+- any score or ranking derived from judgements.
+
+Architectural boundary at this point:
+
+> Nothing leaves the shared view silently: a conflict closes with a note, a
+> contribution retires visibly, a judgement is one person's and stays theirs.
+
 ## Working convention
 
-- `main` — latest coherent version to clone and work from.
-- `prototype/*` or `feature/*` — active experiments that may be discarded or merged.
-- `milestone/*` — preserved runnable historical versions.
+- `main` — the only long-lived branch: latest coherent, runnable version. CI must be green.
+- Short-lived topic branches (`feat/*`, `fix/*`, `docs/*`, `claude/*`) — one per change, merged by PR and deleted after merge.
+- `vX.Y.Z` tags — preserved runnable milestones. `archive/*` tags — unmerged work kept for reference.
+- Planned work lives in [ROADMAP.md](../../ROADMAP.md) and as GitHub issues grouped under GitHub milestones.
 - `docs/history/` — explanation of what changed, what became canonical, and what was deferred.
 
-When a new experiment becomes the best coherent version:
+When a new body of work becomes the best coherent version:
 
-1. preserve the previous `main` as a `milestone/*` branch if it represents a meaningful runnable stage;
+1. tag the current `main` (`git tag -a vX.Y.Z`) if it is a meaningful runnable stage;
 2. document the conceptual/architectural shift here;
-3. merge or fast-forward the accepted work into `main`;
-4. start the next experiment from the new `main`.
+3. merge the PR into `main` and delete its branch;
+4. start the next piece of work from the new `main`.
 
-This makes Git history mirror the product idea itself: keep the current state easy to use while preserving how the understanding evolved.
+This keeps the current state easy to use while preserving how the understanding evolved.

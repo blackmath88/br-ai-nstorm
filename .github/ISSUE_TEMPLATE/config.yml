@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Build plan
+    url: https://github.com/blackmath88/br-ai-nstorm/blob/main/ROADMAP.md
+    about: Check the roadmap before proposing new work.

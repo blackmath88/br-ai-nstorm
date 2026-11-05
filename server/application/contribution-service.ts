@@ -15,12 +15,13 @@ import type {
 import { CONTRIBUTION_KINDS } from '../domain/types.js'
 import { invalid, notFound } from '../domain/errors.js'
 import {
-  assertContributionContent, assertMayEdit, assertMaySupersede, assertHumanActor, PROPOSALS_PER_CONTRIBUTION_LIMIT,
+  assertContributionContent, assertEvaluation, assertMayEdit, assertMaySupersede, assertHumanActor,
+  PROPOSALS_PER_CONTRIBUTION_LIMIT,
 } from '../domain/policies.js'
 import type { ActorContext } from '../auth/actor-context.js'
 import { proposeDeterministically, inferKind, type ProposalDraft } from '../curation/deterministic.js'
 import { agentIdFor, screenParticipantProposals, type DroppedProposal } from '../curation/participant.js'
-import { loadState, type ServiceDeps } from './support.js'
+import { loadState, withFreshState, type ServiceDeps } from './support.js'
 
 export interface AddContributionInput {
   problemId: string
@@ -61,7 +62,10 @@ export interface ContributionService {
   edit(actor: ActorContext, input: { problemId: string; contributionId: string; content?: string; kind?: ContributionKind; reason?: string }): Promise<ContributionRecord>
   supersede(actor: ActorContext, input: { problemId: string; contributionId: string; supersededBy: string; reason?: string }): Promise<ContributionRecord>
   changeVisibility(actor: ActorContext, input: { problemId: string; contributionId: string; to: Visibility; reason?: string }): Promise<ContributionRecord>
-  evaluate(actor: ActorContext, input: { problemId: string; targetId: string; stance: 'useful' | 'doubtful' | 'needs_evidence'; note?: string }): Promise<void>
+  evaluate(
+    actor: ActorContext,
+    input: { problemId: string; targetId: string; stance: unknown; note?: unknown },
+  ): Promise<import('../domain/types.js').EvaluationRecord>
 }
 
 const assertKind = (kind: unknown): ContributionKind => {
@@ -236,13 +240,19 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
       }
     },
 
-    async supersede(actor, input) {
+    supersede: (actor, input) => withFreshState(deps, input.problemId, async (guard) => {
       const { state, contribution } = await find(input.problemId, input.contributionId)
       assertMaySupersede(actor, contribution)
-      if (!state.contributions.some((c) => c.id === input.supersededBy)) {
-        throw notFound('Superseding contribution', input.supersededBy)
-      }
+      const successor = state.contributions.find((c) => c.id === input.supersededBy)
+      if (!successor) throw notFound('Superseding contribution', input.supersededBy)
       if (input.supersededBy === contribution.id) throw invalid('A contribution cannot supersede itself.')
+      // A retired contribution cannot be anyone's replacement — which, with the
+      // fresh-state check, also rules out supersession cycles.
+      if (successor.status !== 'active') {
+        throw invalid(`The replacement is itself ${successor.status}; choose an active contribution.`, {
+          supersededBy: successor.id,
+        })
+      }
 
       const event = makeEvent(deps, {
         problemId: input.problemId,
@@ -251,10 +261,10 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
         eventType: 'ContributionSuperseded',
         payload: { supersededBy: input.supersededBy, ...(input.reason ? { reason: input.reason } : {}) },
       })
-      await deps.repository.append([event])
+      await deps.repository.append([event], guard)
       // The record stays, its history stays; only its status changes.
-      return { ...contribution, status: 'superseded', supersededBy: input.supersededBy, updatedAt: event.timestamp }
-    },
+      return { ...contribution, status: 'superseded' as const, supersededBy: input.supersededBy, updatedAt: event.timestamp }
+    }),
 
     async changeVisibility(actor, input) {
       const { contribution } = await find(input.problemId, input.contributionId)
@@ -279,15 +289,25 @@ export function createContributionService(deps: ServiceDeps): ContributionServic
 
     async evaluate(actor, input) {
       assertHumanActor(actor, 'evaluate a contribution')
+      const { stance, note } = assertEvaluation(input)
       await find(input.problemId, input.targetId)
       const event = makeEvent(deps, {
         problemId: input.problemId,
         actorId: actor.actorId,
         objectId: deps.ids.next('eval'),
         eventType: 'EvaluationAdded',
-        payload: { targetId: input.targetId, stance: input.stance, ...(input.note ? { note: input.note } : {}) },
+        payload: { targetId: input.targetId, stance, ...(note ? { note } : {}) },
       })
       await deps.repository.append([event])
+      return {
+        id: event.objectId,
+        problemId: input.problemId,
+        targetId: input.targetId,
+        actorId: actor.actorId,
+        stance,
+        ...(note ? { note } : {}),
+        createdAt: event.timestamp,
+      }
     },
   }
 }

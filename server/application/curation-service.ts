@@ -8,10 +8,10 @@
 import { makeEvent } from '../domain/events.js'
 import type { ConflictRecord, CurationProposal, RelationRecord } from '../domain/types.js'
 import { notFound, invalid } from '../domain/errors.js'
-import { assertMayReview } from '../domain/policies.js'
-import { assertAcceptableAsConflict, sameConflictPair } from '../domain/conflicts.js'
+import { assertMayResolveConflict, assertMayReview } from '../domain/policies.js'
+import { assertAcceptableAsConflict, nextStatus, sameConflictPair } from '../domain/conflicts.js'
 import type { ActorContext } from '../auth/actor-context.js'
-import { loadState, type ServiceDeps } from './support.js'
+import { loadState, withFreshState, type ServiceDeps } from './support.js'
 
 export interface ReviewResult {
   proposal: CurationProposal
@@ -23,6 +23,11 @@ export interface CurationService {
   list(problemId: string, options?: { status?: CurationProposal['status'] }): Promise<CurationProposal[]>
   accept(actor: ActorContext, input: { problemId: string; proposalId: string }): Promise<ReviewResult>
   reject(actor: ActorContext, input: { problemId: string; proposalId: string; reason?: string }): Promise<ReviewResult>
+  /** Close an accepted conflict — resolved, or dismissed as not a real conflict — with a note. */
+  resolveConflict(
+    actor: ActorContext,
+    input: { problemId: string; conflictId: string; action: unknown; note: unknown },
+  ): Promise<ConflictRecord>
 }
 
 export function createCurationService(deps: ServiceDeps): CurationService {
@@ -39,7 +44,10 @@ export function createCurationService(deps: ServiceDeps): CurationService {
       return options?.status ? state.proposals.filter((p) => p.status === options.status) : state.proposals
     },
 
-    async accept(actor, input) {
+    // Review is read-decide-append. Two people accepting the same proposal at
+    // once must not both succeed: the second re-reads, finds it reviewed, and
+    // gets the "already been reviewed" error.
+    accept: (actor, input) => withFreshState(deps, input.problemId, async (guard) => {
       const { state, proposal } = await findProposal(input.problemId, input.proposalId)
       assertMayReview(actor, proposal)
 
@@ -66,7 +74,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
             confidence: proposal.confidence,
           },
         })
-        await deps.repository.append([event])
+        await deps.repository.append([event], guard)
 
         return {
           proposal: { ...proposal, status: 'accepted', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
@@ -103,7 +111,7 @@ export function createCurationService(deps: ServiceDeps): CurationService {
         eventType: 'RelationAccepted',
         payload: { proposalId: proposal.id, sourceId: proposal.sourceId, targetId, relationKind },
       })
-      await deps.repository.append([event])
+      await deps.repository.append([event], guard)
 
       return {
         proposal: { ...proposal, status: 'accepted', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
@@ -118,9 +126,9 @@ export function createCurationService(deps: ServiceDeps): CurationService {
           fromProposalId: proposal.id,
         },
       }
-    },
+    }),
 
-    async reject(actor, input) {
+    reject: (actor, input) => withFreshState(deps, input.problemId, async (guard) => {
       const { proposal } = await findProposal(input.problemId, input.proposalId)
       assertMayReview(actor, proposal)
 
@@ -131,11 +139,34 @@ export function createCurationService(deps: ServiceDeps): CurationService {
         eventType: proposal.kind === 'conflict' ? 'ConflictRejected' : 'RelationRejected',
         payload: { proposalId: proposal.id, ...(input.reason ? { reason: input.reason } : {}) },
       })
-      await deps.repository.append([event])
+      await deps.repository.append([event], guard)
 
       return {
         proposal: { ...proposal, status: 'rejected', reviewedBy: actor.actorId, reviewedAt: event.timestamp },
       }
-    },
+    }),
+
+    resolveConflict: (actor, input) =>
+      withFreshState(deps, input.problemId, async (guard) => {
+        const state = await loadState(deps, input.problemId)
+        const conflict = state.conflicts.find((c) => c.id === input.conflictId)
+        if (!conflict) throw notFound('Conflict', input.conflictId)
+        const { action, note } = assertMayResolveConflict(actor, conflict, input)
+        const event = makeEvent(deps, {
+          problemId: input.problemId,
+          actorId: actor.actorId,
+          objectId: conflict.id,
+          eventType: 'ConflictResolved',
+          payload: { action, note },
+        })
+        await deps.repository.append([event], guard)
+        return {
+          ...conflict,
+          status: nextStatus(conflict.status, action),
+          resolvedBy: actor.actorId,
+          resolvedAt: event.timestamp,
+          resolutionNote: note,
+        }
+      }),
   }
 }

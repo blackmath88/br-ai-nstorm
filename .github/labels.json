@@ -1,0 +1,23 @@
+[
+  { "name": "bug", "color": "d73a4a", "description": "Something is wrong" },
+  { "name": "feature", "color": "1d76db", "description": "New capability" },
+  { "name": "docs", "color": "0075ca", "description": "Documentation only" },
+  { "name": "chore", "color": "cfd3d7", "description": "Repo, tooling, CI, dependencies" },
+  { "name": "research", "color": "8250df", "description": "A question to answer before building" },
+
+  { "name": "area: domain", "color": "c5def5", "description": "Events, projections, policies" },
+  { "name": "area: curation", "color": "c5def5", "description": "Curators, proposals, orchestration modes" },
+  { "name": "area: mcp", "color": "c5def5", "description": "MCP tools and transports" },
+  { "name": "area: ui", "color": "c5def5", "description": "React room" },
+  { "name": "area: persistence", "color": "c5def5", "description": "Event log adapters" },
+  { "name": "area: auth", "color": "c5def5", "description": "Identity and tokens" },
+  { "name": "area: worker", "color": "c5def5", "description": "Cloudflare Worker / Durable Object" },
+  { "name": "area: adoption", "color": "c5def5", "description": "Manifest, import, static view" },
+
+  { "name": "phase: 0.5 field test", "color": "0e8a16", "description": "Now: run and learn from the field test" },
+  { "name": "phase: 0.6", "color": "fbca04", "description": "Next: chosen by field-test results" },
+  { "name": "phase: later", "color": "f9d0c4", "description": "Deferred with a recorded trigger" },
+
+  { "name": "priority: high", "color": "b60205", "description": "" },
+  { "name": "blocked", "color": "000000", "description": "Waiting on a decision or another issue" }
+]

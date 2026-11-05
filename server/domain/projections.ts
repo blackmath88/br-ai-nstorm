@@ -11,7 +11,7 @@
 import type {
   ConflictAcceptedPayload, ContributionAddedPayload, ContributionEditedPayload,
   ContributionSupersededPayload, EvaluationAddedPayload, MemoryEvent,
-  OrchestrationModeChangedPayload, ProblemCreatedPayload, ProposalPayload, RelationAcceptedPayload,
+  ConflictResolvedPayload, OrchestrationModeChangedPayload, ProblemCreatedPayload, ProposalPayload, RelationAcceptedPayload,
   ReviewRejectedPayload, VisibilityChangedPayload,
 } from './events.js'
 import type {
@@ -19,6 +19,7 @@ import type {
   ProblemRecord, ProblemState, RelationRecord,
 } from './types.js'
 import { DEFAULT_ORCHESTRATION_MODE } from './types.js'
+import { nextStatus } from './conflicts.js'
 
 const asPayload = <T>(event: MemoryEvent): T => event.payload as unknown as T
 
@@ -202,9 +203,27 @@ function evolve(acc: Accumulator, event: MemoryEvent): Accumulator {
       return acc
     }
 
+    case 'ConflictResolved': {
+      const existing = acc.conflicts.get(event.objectId)
+      if (!existing || existing.status !== 'open') return acc
+      const p = asPayload<ConflictResolvedPayload>(event)
+      acc.conflicts.set(event.objectId, {
+        ...existing,
+        status: nextStatus(existing.status, p.action),
+        resolvedBy: event.actorId,
+        resolvedAt: event.timestamp,
+        resolutionNote: p.note,
+      })
+      return acc
+    }
+
     case 'EvaluationAdded': {
       const p = asPayload<EvaluationAddedPayload>(event)
-      acc.evaluations.set(event.objectId, {
+      // One standing judgement per person per contribution: keyed by the pair,
+      // so a new one replaces the old in state. The log keeps every change of mind.
+      const key = `${event.actorId}\u0000${p.targetId}`
+      acc.evaluations.delete(key) // re-insert, so state order follows the latest judgement
+      acc.evaluations.set(key, {
         id: event.objectId,
         problemId: event.problemId,
         targetId: p.targetId,

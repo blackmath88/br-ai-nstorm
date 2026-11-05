@@ -4,14 +4,16 @@ import { createContributionService } from '../server/application/contribution-se
 import { createCurationService } from '../server/application/curation-service.js'
 import { createOrchestrationService } from '../server/application/orchestration-service.js'
 import { createImportService } from '../server/application/import-service.js'
+import { createReportService } from '../server/application/report-service.js'
 import { nullCurator } from '../server/curation/ai-curator.js'
 import { ensureSeedData } from '../server/persistence/seed.js'
-import type { EventRepository } from '../server/persistence/repository.js'
+import { countIn, type EventRepository } from '../server/persistence/repository.js'
 import { createDemoAuth } from './demo-auth.js'
 import { createDurableEventRepository } from './durable-repository.js'
 
 interface EventLogStub {
-  append(events: MemoryEvent[]): Promise<void>
+  append(events: MemoryEvent[], ifVersion?: number, scope?: string): Promise<void | { stale: true; expected: number; actual: number }>
+  version(problemId?: string): Promise<number>
   appendIfEmpty(events: MemoryEvent[]): Promise<boolean>
   read(problemId?: string): Promise<MemoryEvent[]>
 }
@@ -35,6 +37,9 @@ function createCaptureRepository() {
     },
     async read(problemId) {
       return problemId ? events.filter((event) => event.problemId === problemId) : [...events]
+    },
+    async version(problemId) {
+      return countIn(events, problemId)
     },
   }
   return { repository, events }
@@ -66,6 +71,7 @@ export async function buildWorkerServices(env: WorkerEnv) {
     curation: createCurationService(deps),
     orchestration: createOrchestrationService(deps),
     imports: createImportService(deps),
+    reports: createReportService(deps),
     auth: createDemoAuth(),
     curator: nullCurator,
     repository,

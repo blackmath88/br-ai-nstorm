@@ -18,6 +18,23 @@ const KIND_COPY: Record<CurationProposal['kind'], { title: string; accept: strin
   classification: { title: 'Possible reclassification', accept: 'Accept' },
 }
 
+/**
+ * Review order, most consequential first. Accepting a conflict changes what the
+ * group is looking at; accepting a reclassification moves a card between two
+ * columns, so insertion order would bury conflicts under cheap proposals.
+ */
+const KIND_RANK: Record<CurationProposal['kind'], number> = {
+  conflict: 0,
+  duplicate: 1,
+  relation: 2,
+  classification: 3,
+}
+
+const byReviewPriority = (a: CurationProposal, b: CurationProposal): number =>
+  KIND_RANK[a.kind] !== KIND_RANK[b.kind]
+    ? KIND_RANK[a.kind] - KIND_RANK[b.kind]
+    : b.confidence - a.confidence
+
 const MODE_LABEL: Record<OrchestrationMode, string> = {
   participant: 'Participant AI',
   api: 'Server API',
@@ -107,8 +124,11 @@ export function CurationPanel({
   orchestrationOptions: OrchestrationOption[]
   onSetOrchestration: (mode: OrchestrationMode, reason?: string) => void
 }) {
-  const pending = proposals.filter((p) => p.status === 'pending')
-  const reviewed = proposals.filter((p) => p.status !== 'pending')
+  const pending = proposals.filter((p) => p.status === 'pending').sort(byReviewPriority)
+  // Most recently decided first: history is for checking what just happened.
+  const reviewed = proposals
+    .filter((p) => p.status !== 'pending')
+    .sort((a, b) => (b.reviewedAt ?? '').localeCompare(a.reviewedAt ?? ''))
   const labels = new Map(contributions.map((c) => [c.id, c.label]))
   const label = (id?: string) => (id ? (labels.get(id) ?? id) : '—')
 
