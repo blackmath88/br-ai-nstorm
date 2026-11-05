@@ -178,6 +178,28 @@ npm test
 npm run build
 ```
 
+### Demo data
+
+The seed alone leaves the interesting surfaces empty: no conflicts, no
+proposals, nothing superseded.
+
+```bash
+npm run demo:reset     # wipe the local log, rebuild seed + scenario
+npm run demo           # add the scenario to an existing log
+```
+
+This writes a scripted multi-participant story **through the real application
+services**, so every proposal in it was produced by the actual curator and the
+data cannot express anything the domain would refuse. `campus-ai` gets an open
+conflict, a superseded contribution and a review queue; `basel-heat` gets a
+smaller queue; `research-onboarding` is left untouched so the empty states stay
+visible. `server/test/demo.test.ts` fails if any of those surfaces comes out
+empty.
+
+> Restarting `npm run dev:server` invalidates prototype session tokens (they
+> live in that process's memory). The app says so and returns you to the
+> participant picker.
+
 ## HTTP API
 
 Every route except `/health` and the prototype login stub requires
@@ -379,7 +401,8 @@ server/
   mcp/               create-server · register-tools · stdio · http
   http/              api · server
   container.ts       composition root — the only place that reads env
-  test/              domain · api · mcp · persistence · integration · orchestration · adoption · worker
+  demo/              scripted multi-participant scenario for hand testing
+  test/              domain · api · mcp · persistence · integration · orchestration · adoption · worker · lifecycle · concurrency · demo
 
 worker/              Cloudflare adapters: api · mcp · durable repository · demo auth
 scripts/brainstorm.ts  adoption CLI: init · build · preview · push
@@ -387,7 +410,7 @@ scripts/brainstorm.ts  adoption CLI: init · build · preview · push
 
 ## Tests
 
-`npm test` — 135 tests across ten files. `npm run typecheck` covers the
+`npm test` — 148 tests across eleven files. `npm run typecheck` covers the
 frontend, the server and the Worker.
 
 The decisive one is `server/test/integration.test.ts`: Kai contributes over
@@ -400,9 +423,13 @@ through both transports at once.
 `server/test/worker.test.ts` drives a real MCP client through the Worker's
 fetch handler, with the Durable Object replaced by an in-memory stub.
 
-`server/test/persistence.test.ts` covers the concurrency fix: v0.2's
-read-modify-write store kept **1 of 50** concurrent appends (measured, not
-assumed); the current store keeps all 50.
+`server/test/persistence.test.ts` covers two storage fixes:
+
+- v0.2's read-modify-write store kept **1 of 50** concurrent appends (measured,
+  not assumed); the current store keeps all 50.
+- The store re-checks the file before every read, so `npm run dev:server` and
+  `npm run mcp` (two processes over one log) see each other's writes instead of
+  erasing them.
 
 ## What is intentionally still missing
 
