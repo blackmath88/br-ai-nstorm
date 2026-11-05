@@ -452,7 +452,10 @@ ADOPTION.md and not built.
 
 - [docs/CONCEPT.md](docs/CONCEPT.md) — the product and research idea
 - [docs/SCHEMAS.md](docs/SCHEMAS.md) — interchange schemas
-- [docs/history/MILESTONES.md](docs/history/MILESTONES.md) — how the understanding evolved
+- [ROADMAP.md](ROADMAP.md) — build plan; every item is a GitHub issue
+- [CONTRIBUTING.md](CONTRIBUTING.md) — branches, PRs, checks
+- [docs/history/MILESTONES.md](docs/history/MILESTONES.md) — how the understanding evolved (milestones are git tags)
+- [docs/legacy/](docs/legacy/README.md) — early concept JSON and the single-file prototype, kept for provenance
 - [docs/architecture/V0_3_RESEARCH.md](docs/architecture/V0_3_RESEARCH.md) — what was sound, what had to go, and why
 - [docs/architecture/REFERENCE_IMPLEMENTATIONS.md](docs/architecture/REFERENCE_IMPLEMENTATIONS.md) — per-repo evaluation, licences, what not to copy
 - [docs/architecture/ADR-003-v0.3-shared-room.md](docs/architecture/ADR-003-v0.3-shared-room.md) — the v0.3 decision
