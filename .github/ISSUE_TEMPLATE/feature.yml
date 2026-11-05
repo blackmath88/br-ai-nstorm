@@ -1,0 +1,25 @@
+name: Feature / roadmap item
+description: A capability to build. Say what it proves, not only what it does.
+labels: [feature]
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Which hypothesis, finding or user need this serves.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What changes, and what is explicitly out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Observable acceptance criteria, ideally a test.
+    validations:
+      required: true

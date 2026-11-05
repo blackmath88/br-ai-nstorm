@@ -1,0 +1,34 @@
+name: Sync labels
+
+# Keeps repository labels in line with .github/labels.json. Creates and updates;
+# never deletes, so hand-made labels survive.
+on:
+  push:
+    branches: [main]
+    paths: [.github/labels.json]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const wanted = require('./.github/labels.json')
+            const existing = await github.paginate(github.rest.issues.listLabelsForRepo, context.repo)
+            const byName = new Map(existing.map((l) => [l.name.toLowerCase(), l]))
+            for (const label of wanted) {
+              const current = byName.get(label.name.toLowerCase())
+              if (!current) {
+                await github.rest.issues.createLabel({ ...context.repo, ...label })
+                core.info(`created ${label.name}`)
+              } else if (current.color !== label.color || (current.description ?? '') !== label.description) {
+                await github.rest.issues.updateLabel({ ...context.repo, ...label, name: current.name, new_name: label.name })
+                core.info(`updated ${label.name}`)
+              }
+            }
