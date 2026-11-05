@@ -200,8 +200,11 @@ export function useRoom(): Room {
       } catch (err) {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) {
+          // Prototype tokens live in the server's memory, so a restart
+          // invalidates them. Say so instead of silently dropping to the picker.
           saveSession(null)
           setSession(null)
+          setNotice('Your session ended (the server restarted). Pick a participant to continue.')
           setPhase('ready')
           return
         }
