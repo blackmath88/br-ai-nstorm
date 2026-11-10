@@ -461,6 +461,7 @@ ADOPTION.md and not built.
 - [docs/architecture/ADR-003-v0.3-shared-room.md](docs/architecture/ADR-003-v0.3-shared-room.md) — the v0.3 decision
 - [docs/ADOPTION.md](docs/ADOPTION.md) — Brainstorm as a reusable problem-space form (issue #4)
 - [docs/FIELD_TEST.md](docs/FIELD_TEST.md) — the three-person session: setup, protocol, what counts as a negative result
+- [Contribution alignment experiment](docs/contribution-alignment/README.md) — uncommitted proposal and opt-in validation plan (#18)
 - [docs/architecture/CLOUDFLARE_DEMO.md](docs/architecture/CLOUDFLARE_DEMO.md) — Worker deployment, including MCP
 
 ## Next validation
